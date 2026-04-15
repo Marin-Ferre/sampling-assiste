@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C c:/dev/sampling-assiste log --oneline -10)",
+      "Bash(git -C c:/dev/sampling-assiste show --stat HEAD)",
+      "Bash(git -C c:/dev/sampling-assiste diff HEAD~1 HEAD --name-only)",
+      "Bash(docker-compose ps *)",
+      "Bash(docker-compose up *)",
+      "Bash(docker-compose exec *)",
+      "Bash(python -m ingestion.dump_parser)",
+      "Bash(pkill -f \"ingestion.dump_parser\")",
+      "Bash(taskkill /F /FI \"WINDOWTITLE eq *dump_parser*\")",
+      "Bash(gzip -t c:/dev/sampling-assiste/data/dumps/discogs_20251201_releases.xml.gz)",
+      "Bash(python -m ingestion.dump_downloader)",
+      "Bash(curl -s \"https://www.discogs.com/developers#page:database,header:database-discogs-data-export\" -A \"Mozilla/5.0\")",
+      "Bash(curl -si \"https://discogs-data-dumps.s3-us-west-2.amazonaws.com/data/2025/discogs_20251201_releases.xml.gz\" --range 0-0)",
+      "Bash(curl -s \"https://data.discogs.com/\")",
+      "Bash(curl -s \"https://data.discogs.com/?prefix=data%2F2026%2F\")",
+      "Bash(python -c \"from ingestion.dump_downloader import list_latest_dump; print\\(list_latest_dump\\(\\)\\)\")",
+      "Bash(python -c \"from ingestion.dump_parser import run, init_db; print\\('OK'\\)\")"
+    ]
+  }
+}

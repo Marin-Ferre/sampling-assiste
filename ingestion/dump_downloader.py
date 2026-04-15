@@ -1,72 +1,82 @@
 """
-Télécharge le dernier dump Discogs releases.
+Télécharge le dernier dump mensuel Discogs releases dans data/dumps/.
 
 Usage : python -m ingestion.dump_downloader
-Le fichier est sauvegardé dans data/dumps/
 """
 
-import os
 import re
-import sys
-import logging
 from pathlib import Path
 
 import requests
 from tqdm import tqdm
 
-logger = logging.getLogger(__name__)
-
 DUMPS_DIR = Path(__file__).parent.parent / "data" / "dumps"
-LISTING_URL = "https://data.discogs.com/?prefix=data/2025/"
-BASE_URL = "https://data.discogs.com/data/2025/"
+ARCHIVE_DIR = DUMPS_DIR / "archive"
+DISCOGS_DATA_URL = "https://data.discogs.com/"
 
 
-def get_latest_dump_filename() -> str:
-    resp = requests.get(LISTING_URL, timeout=30)
+def list_latest_dump() -> tuple[str, str]:
+    """Retourne (url_download, filename) du dernier dump releases disponible."""
+    from datetime import datetime
+    year = datetime.now().year
+    resp = requests.get(DISCOGS_DATA_URL, params={"prefix": f"data/{year}/"}, timeout=30)
     resp.raise_for_status()
-    matches = re.findall(r"discogs_\d{8}_releases\.xml\.gz", resp.text)
-    if not matches:
-        raise RuntimeError("Aucun dump trouvé sur data.discogs.com")
-    return sorted(set(matches))[-1]
+
+    keys = re.findall(r'href="\?download=(data%2F\d+%2Fdiscogs_\d+_releases\.xml\.gz)"', resp.text)
+    if not keys:
+        raise RuntimeError(f"Aucun dump releases trouvé pour {year}")
+
+    latest_key = sorted(keys)[-1]
+    filename = latest_key.split("%2F")[-1]
+    url = f"{DISCOGS_DATA_URL}?download={latest_key}"
+    return url, filename
 
 
 def download(url: str, dest: Path) -> None:
-    logger.info("Téléchargement : %s", url)
-    with requests.get(url, stream=True, timeout=60) as r:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    # Reprise partielle si le fichier existe déjà
+    resume_pos = dest.stat().st_size if dest.exists() else 0
+    headers = {"Range": f"bytes={resume_pos}-"} if resume_pos else {}
+
+    with requests.get(url, headers=headers, stream=True, timeout=60) as r:
+        if r.status_code == 416:
+            print(f"Fichier déjà complet : {dest}")
+            return
         r.raise_for_status()
-        total = int(r.headers.get("content-length", 0))
+
+        total = int(r.headers.get("Content-Length", 0)) + resume_pos
+        mode = "ab" if resume_pos else "wb"
+
         with (
-            open(dest, "wb") as f,
+            open(dest, mode) as f,
             tqdm(
                 total=total,
+                initial=resume_pos,
                 unit="B",
                 unit_scale=True,
-                unit_divisor=1024,
                 desc=dest.name,
             ) as bar,
         ):
             for chunk in r.iter_content(chunk_size=1024 * 1024):
                 f.write(chunk)
                 bar.update(len(chunk))
-    logger.info("Fichier sauvegardé : %s (%.1f MB)", dest, dest.stat().st_size / 1e6)
 
 
-def run() -> Path:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s — %(message)s")
-    DUMPS_DIR.mkdir(parents=True, exist_ok=True)
-
-    filename = get_latest_dump_filename()
+def run() -> None:
+    print("Recherche du dernier dump Discogs...")
+    url, filename = list_latest_dump()
     dest = DUMPS_DIR / filename
 
-    if dest.exists():
-        logger.info("Dump déjà présent : %s", dest)
-        return dest
+    print(f"URL   : {url}")
+    print(f"Dest  : {dest}")
 
-    url = BASE_URL + filename
+    if dest.exists():
+        print(f"Reprise depuis {dest.stat().st_size / 1e9:.2f} GB déjà téléchargés")
+
     download(url, dest)
-    return dest
+    print(f"Téléchargement terminé : {dest}")
 
 
 if __name__ == "__main__":
-    path = run()
-    print(f"\nDump disponible : {path}")
+    run()

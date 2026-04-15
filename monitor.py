@@ -126,8 +126,9 @@ def build_display(stats: dict, rpm: float) -> Layout:
     metrics_table.add_row("Ajoutées (10 dernières sec)", f"{stats['last_10s']:,}")
     metrics_table.add_row("Vitesse", f"{rpm:.1f} lignes/min")
     # Estimation appels API : ~1 appel search + 1 appel detail par release
-    api_rpm = rpm * 2
-    metrics_table.add_row("Appels API estimés", f"~{api_rpm:.0f} req/min")
+    # 1 appel search pour 100 releases + 1 appel detail par release = ~1.01 appels/release
+    api_rpm = rpm * 1.01
+    metrics_table.add_row("Appels API estimés", f"~{api_rpm:.0f} req/min  (limite : 60)")
     layout["left"].update(Panel(metrics_table, title="[bold]Métriques", border_style="green"))
 
     # Progression par genre

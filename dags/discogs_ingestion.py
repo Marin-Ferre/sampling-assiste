@@ -26,10 +26,12 @@ DEFAULT_ARGS = {
 
 
 def _download_dump_task(**context) -> str:
-    from ingestion.dump_downloader import run
-    path = run()
-    # Pousse le chemin vers la tâche suivante via XCom
-    return str(path)
+    from ingestion.dump_downloader import list_latest_dump, download, DUMPS_DIR
+    from pathlib import Path
+    url, filename = list_latest_dump()
+    dest = DUMPS_DIR / filename
+    download(url, dest)
+    return str(dest)
 
 
 def _parse_dump_task(**context) -> None:

@@ -23,7 +23,6 @@ from lxml import etree
 from tqdm import tqdm
 
 from ingestion.config import PG_DSN, TARGET_GENRES
-from ingestion.fetch_releases import init_db
 
 logger = logging.getLogger(__name__)
 
@@ -46,13 +45,38 @@ ON CONFLICT (discogs_id) DO UPDATE SET
     ingested_at    = NOW();
 """
 
-CHECKPOINT_TABLE = """
+SCHEMA_SQL = """
+CREATE SCHEMA IF NOT EXISTS raw;
+
+CREATE TABLE IF NOT EXISTS raw.releases (
+    discogs_id      INTEGER PRIMARY KEY,
+    title           TEXT,
+    artist          TEXT,
+    year            SMALLINT,
+    country         TEXT,
+    genres          TEXT[],
+    styles          TEXT[],
+    label           TEXT,
+    community_have  INTEGER,
+    community_want  INTEGER,
+    lowest_price    NUMERIC(10, 2),
+    master_id       INTEGER,
+    ingested_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS raw.dump_checkpoints (
     dump_file   TEXT PRIMARY KEY,
     offset_done BIGINT DEFAULT 0,
     updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
 """
+
+
+def init_db(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(SCHEMA_SQL)
+    conn.commit()
+    logging.getLogger(__name__).info("Schéma initialisé")
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +233,7 @@ def run(dump_path: Path | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s — %(message)s")
 
     if dump_path is None:
-        from ingestion.dump_downloader import DUMPS_DIR
+        DUMPS_DIR = Path(__file__).parent.parent / "data" / "dumps"
         dumps = sorted(DUMPS_DIR.glob("discogs_*_releases.xml.gz"))
         if not dumps:
             raise FileNotFoundError(f"Aucun dump trouvé dans {DUMPS_DIR}. Lance d'abord dump_downloader.py")
