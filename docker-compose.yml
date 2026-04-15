@@ -23,7 +23,9 @@ services:
   # Airflow — base de données interne (SQLite non recommandé en prod)
   # ---------------------------------------------------------------------------
   airflow-init:
-    image: apache/airflow:2.9.1
+    build:
+      context: .
+      dockerfile: airflow.Dockerfile
     depends_on:
       postgres:
         condition: service_healthy
@@ -38,7 +40,9 @@ services:
     restart: on-failure
 
   airflow-webserver:
-    image: apache/airflow:2.9.1
+    build:
+      context: .
+      dockerfile: airflow.Dockerfile
     depends_on:
       airflow-init:
         condition: service_completed_successfully
@@ -46,13 +50,9 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@postgres:5432/airflow
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      # Token Discogs transmis aux DAGs
       DISCOGS_TOKEN: ${DISCOGS_TOKEN}
-      # DSN pointant vers le service postgres du compose
       PG_DSN: postgresql://postgres:postgres@postgres:5432/sampling_assiste
     volumes:
-      - ./dags:/opt/airflow/dags
-      - ./ingestion:/opt/airflow/ingestion
       - airflow_logs:/opt/airflow/logs
     ports:
       - "8080:8080"
@@ -60,14 +60,14 @@ services:
     restart: unless-stopped
 
   airflow-scheduler:
-    image: apache/airflow:2.9.1
+    build:
+      context: .
+      dockerfile: airflow.Dockerfile
     depends_on:
       airflow-init:
         condition: service_completed_successfully
     environment: *airflow-env
     volumes:
-      - ./dags:/opt/airflow/dags
-      - ./ingestion:/opt/airflow/ingestion
       - airflow_logs:/opt/airflow/logs
     command: scheduler
     restart: unless-stopped
