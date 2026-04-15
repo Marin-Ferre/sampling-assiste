@@ -1,75 +1,66 @@
 """
-DAG d'ingestion Discogs → PostgreSQL.
+DAG d'ingestion Discogs via Data Dumps mensuels.
 
-Planification : quotidienne à 3h00 UTC
+Planification : 1er de chaque mois à 3h00 UTC
 Structure :
   start
-    └── ingest_<genre> (un task par genre, en parallèle)
-          └── end
+    └── download_dump       (télécharge le dernier dump releases)
+    └── parse_and_insert    (parse XML + bulk insert PostgreSQL)
+    └── end
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.empty import EmptyOperator
 
-from ingestion.fetch_releases import ingest_genre, init_db
-from ingestion.config import TARGET_GENRES, PG_DSN
-
-import psycopg2
-
 DEFAULT_ARGS = {
     "owner": "mferre",
-    "retries": 3,
-    "retry_delay": timedelta(minutes=5),
-    "retry_exponential_backoff": True,
+    "retries": 2,
+    "retry_delay": timedelta(minutes=10),
 }
 
 
-def _init_db_task() -> None:
-    conn = psycopg2.connect(PG_DSN)
-    try:
-        init_db(conn)
-    finally:
-        conn.close()
+def _download_dump_task(**context) -> str:
+    from ingestion.dump_downloader import run
+    path = run()
+    # Pousse le chemin vers la tâche suivante via XCom
+    return str(path)
 
 
-def _ingest_genre_task(genre: str) -> None:
-    conn = psycopg2.connect(PG_DSN)
-    try:
-        ingest_genre(conn, genre)
-    finally:
-        conn.close()
+def _parse_dump_task(**context) -> None:
+    from ingestion.dump_parser import run
+    ti = context["ti"]
+    dump_path_str = ti.xcom_pull(task_ids="download_dump")
+    run(Path(dump_path_str))
 
 
 with DAG(
-    dag_id="discogs_ingestion",
-    description="Ingestion des releases Discogs par genre vers raw.releases",
-    schedule="0 3 * * *",
+    dag_id="discogs_dump_ingestion",
+    description="Ingestion mensuelle Discogs via Data Dumps (XML bulk)",
+    schedule="0 3 1 * *",  # 1er du mois à 3h UTC
     start_date=datetime(2024, 1, 1),
     catchup=False,
     default_args=DEFAULT_ARGS,
-    tags=["ingestion", "discogs"],
+    tags=["ingestion", "discogs", "dump"],
 ) as dag:
 
     start = EmptyOperator(task_id="start")
     end = EmptyOperator(task_id="end")
 
-    init_task = PythonOperator(
-        task_id="init_db",
-        python_callable=_init_db_task,
+    download = PythonOperator(
+        task_id="download_dump",
+        python_callable=_download_dump_task,
     )
 
-    genre_tasks = [
-        PythonOperator(
-            task_id=f"ingest_{genre.lower().replace(' / ', '_').replace(' ', '_')}",
-            python_callable=_ingest_genre_task,
-            op_kwargs={"genre": genre},
-        )
-        for genre in TARGET_GENRES
-    ]
+    parse = PythonOperator(
+        task_id="parse_and_insert",
+        python_callable=_parse_dump_task,
+        execution_timeout=timedelta(hours=12),
+    )
 
-    start >> init_task >> genre_tasks >> end
+    start >> download >> parse >> end
