@@ -21,7 +21,7 @@ DISCOGS_BASE_URL = "https://api.discogs.com"
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Sampling Assisté")
+app = FastAPI(title="GemDigger")
 
 INIT_LIKES_SQL = """
 CREATE TABLE IF NOT EXISTS likes (
