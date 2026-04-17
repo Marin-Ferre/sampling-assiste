@@ -5,790 +5,1059 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GemDigger</title>
 
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet" />
+
   <!-- noUiSlider -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
   <!-- TomSelect -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" />
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
   <style>
+    /* ── Tokens ── */
     :root {
-      --bg: #0e0e0e;
-      --surface: #1a1a1a;
-      --surface2: #242424;
-      --border: #333;
-      --accent: #c9a84c;
-      --accent2: #a07830;
-      --text: #e8e8e8;
-      --muted: #888;
-      --radius: 12px;
+      --paper: #F4EFE4;
+      --paper2: #EDE7D8;
+      --ink: #1A1410;
+      --ink2: #3D3028;
+      --muted: #8A7D6E;
+      --accent: #C93A1A;   /* rouge-brique vif */
+      --gold: #B8922A;
+      --rule: 2px solid var(--ink);
+      --rule-thin: 1px solid #C5BAA8;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
 
     body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Crimson Pro', Georgia, serif;
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px 20px;
+      overflow-x: hidden;
+      /* Grain texture via SVG data-URI */
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+      background-repeat: repeat;
     }
 
-    h1 {
-      font-size: 1.6rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
+    /* ── Header masthead ── */
+    .masthead {
+      width: 100%;
+      border-bottom: var(--rule);
+      padding: 0 40px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      overflow: hidden;
+    }
+
+    .masthead-title {
+      font-family: 'Bebas Neue', Impact, sans-serif;
+      font-size: clamp(72px, 14vw, 160px);
+      line-height: 0.88;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      /* légèrement décalé en bas pour mordre la ligne */
+      transform: translateY(4px);
+      user-select: none;
+    }
+
+    .masthead-title span {
+      color: var(--accent);
+    }
+
+    .masthead-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      padding-bottom: 12px;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .masthead-tagline {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ── Nav strip ── */
+    .nav-strip {
+      width: 100%;
+      border-bottom: var(--rule-thin);
+      display: flex;
+      align-items: stretch;
+      background: var(--paper);
+    }
+
+    .nav-btn {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 10px 28px;
+      background: none;
+      border: none;
+      border-right: var(--rule-thin);
+      cursor: pointer;
+      color: var(--muted);
+      transition: color 0.2s, background 0.2s;
+      position: relative;
+    }
+
+    .nav-btn::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    .nav-btn.active {
+      color: var(--ink);
+      background: var(--paper2);
+    }
+    .nav-btn.active::after { transform: scaleX(1); }
+    .nav-btn:hover { color: var(--ink); }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 48px 40px;
+    }
+
+    /* ── Views ── */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Section header ── */
+    .section-eyebrow {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.22em;
       text-transform: uppercase;
       color: var(--accent);
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
-    .subtitle {
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.2rem;
+      letter-spacing: 0.03em;
+      line-height: 1;
+      margin-bottom: 32px;
+    }
+
+    /* ── Filter panel ── */
+    .filter-panel {
+      border: var(--rule);
+      background: var(--paper2);
+      margin-bottom: 0;
+    }
+
+    .filter-panel-header {
+      border-bottom: var(--rule);
+      padding: 10px 24px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
       color: var(--muted);
-      font-size: 0.85rem;
-      margin-bottom: 40px;
-      letter-spacing: 0.05em;
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 28px 32px;
-      width: 100%;
-      max-width: 700px;
-      margin-bottom: 20px;
-    }
-
-    .filters-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 28px 32px;
-    }
-
-    .filter-group {
       display: flex;
-      flex-direction: column;
+      align-items: center;
       gap: 12px;
     }
 
-    .filter-group.full { grid-column: 1 / -1; }
+    .filter-panel-header::before {
+      content: '▶';
+      font-size: 0.5rem;
+      color: var(--accent);
+    }
 
-    label {
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.1em;
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .filter-cell {
+      padding: 20px 24px;
+      border-right: var(--rule-thin);
+      border-bottom: var(--rule-thin);
+    }
+
+    .filter-cell:nth-child(2n) { border-right: none; }
+    .filter-cell.wide {
+      grid-column: 1 / -1;
+      border-right: none;
+    }
+    .filter-cell:last-child,
+    .filter-cell:nth-last-child(2):not(.wide) {
+      border-bottom: none;
+    }
+    .filter-cell.wide:last-child { border-bottom: none; }
+
+    .filter-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
       color: var(--muted);
+      margin-bottom: 12px;
+      display: block;
     }
 
-    .slider-container { padding: 8px 4px; }
-
-    .slider-values {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.8rem;
-      color: var(--accent);
-      font-weight: 600;
-      margin-top: 8px;
-    }
-
-    /* noUiSlider theme */
+    /* noUiSlider */
     .noUi-target {
-      background: var(--surface2);
-      border: 1px solid var(--border);
+      background: #D8CFC0;
+      border: none;
+      border-radius: 0;
       box-shadow: none;
-      height: 4px;
+      height: 3px;
     }
     .noUi-connect { background: var(--accent); }
     .noUi-handle {
-      background: var(--accent);
+      background: var(--ink);
       border: none;
-      box-shadow: 0 0 0 3px rgba(201,168,76,0.3);
-      border-radius: 50%;
-      width: 18px !important;
-      height: 18px !important;
-      top: -8px !important;
-      right: -9px !important;
+      border-radius: 0;
+      box-shadow: none;
+      width: 14px !important;
+      height: 14px !important;
+      top: -6px !important;
+      right: -7px !important;
       cursor: pointer;
+      transition: background 0.15s;
     }
+    .noUi-handle:hover { background: var(--accent); }
     .noUi-handle::before, .noUi-handle::after { display: none; }
 
-    /* TomSelect theme override */
-    .ts-wrapper.multi .ts-control {
-      background: var(--surface2) !important;
-      border-color: var(--border) !important;
-      color: var(--text) !important;
-      border-radius: 8px !important;
-      padding: 6px 10px !important;
-      min-height: 42px;
+    .slider-vals {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--ink2);
+      margin-top: 8px;
     }
-    .ts-wrapper.multi .ts-control input { color: var(--text) !important; }
+
+    /* TomSelect */
+    .ts-wrapper .ts-control {
+      background: transparent !important;
+      border: none !important;
+      border-bottom: 1px solid #C5BAA8 !important;
+      border-radius: 0 !important;
+      padding: 4px 0 !important;
+      box-shadow: none !important;
+      font-family: 'Crimson Pro', serif;
+      font-size: 0.95rem;
+      color: var(--ink);
+    }
+    .ts-wrapper .ts-control input {
+      font-family: 'Crimson Pro', serif;
+      font-size: 0.95rem;
+      color: var(--ink) !important;
+    }
+    .ts-wrapper .ts-control .item {
+      background: var(--ink) !important;
+      color: var(--paper) !important;
+      border: none !important;
+      border-radius: 0 !important;
+      font-size: 0.78rem;
+      font-family: 'Space Mono', monospace;
+      letter-spacing: 0.04em;
+      padding: 2px 7px !important;
+    }
     .ts-wrapper .ts-dropdown {
-      background: var(--surface2) !important;
-      border-color: var(--border) !important;
-      color: var(--text) !important;
+      background: var(--paper) !important;
+      border: var(--rule) !important;
+      border-radius: 0 !important;
+      color: var(--ink) !important;
+      font-family: 'Crimson Pro', serif;
     }
     .ts-wrapper .ts-dropdown .option:hover,
     .ts-wrapper .ts-dropdown .option.active {
-      background: var(--accent2) !important;
+      background: var(--accent) !important;
       color: #fff !important;
     }
-    .ts-wrapper .ts-control .item {
-      background: var(--accent2) !important;
-      color: #fff !important;
-      border: none !important;
-      border-radius: 4px !important;
-      font-size: 0.78rem;
-    }
+    .ts-wrapper.focus .ts-control { box-shadow: none !important; }
 
-    .btn-randomize {
+    /* ── Dig button ── */
+    .btn-dig {
       width: 100%;
-      max-width: 700px;
-      padding: 16px;
-      background: var(--accent);
-      color: #000;
-      border: none;
-      border-radius: var(--radius);
-      font-size: 1rem;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-      margin-bottom: 28px;
-    }
-    .btn-randomize:hover { background: #dfc060; }
-    .btn-randomize:active { transform: scale(0.98); }
-    .btn-randomize:disabled { background: #555; color: #888; cursor: not-allowed; }
-
-    /* Result card */
-    .result-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      width: 100%;
-      max-width: 700px;
-      overflow: hidden;
-      display: none;
-    }
-    .result-card.visible { display: block; }
-
-    .result-inner {
-      display: flex;
-      gap: 0;
-    }
-
-    .cover-wrapper {
-      flex-shrink: 0;
-      width: 220px;
-      height: 220px;
-      background: var(--surface2);
-      position: relative;
-      overflow: hidden;
-    }
-    .cover-wrapper img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    .cover-placeholder {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 3rem;
-      color: var(--border);
-    }
-
-    .result-info {
-      padding: 24px 28px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .result-title {
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1.3;
-    }
-    .result-artist {
-      font-size: 0.95rem;
-      color: var(--accent);
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    .result-meta {
-      font-size: 0.8rem;
-      color: var(--muted);
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 8px;
-    }
-    .tag {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      padding: 2px 8px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      color: var(--muted);
-    }
-    .tag.accent { border-color: var(--accent2); color: var(--accent); }
-
-    .result-scores {
-      display: flex;
-      gap: 16px;
-      margin-top: auto;
-      padding-top: 12px;
-      border-top: 1px solid var(--border);
-    }
-    .score-item { display: flex; flex-direction: column; gap: 2px; }
-    .score-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
-    .score-value { font-size: 1rem; font-weight: 700; color: var(--accent); }
-
-    .result-footer {
-      display: flex;
-      align-items: center;
-      border-top: 1px solid var(--border);
-    }
-    .result-link {
-      display: block;
-      flex: 1;
-      padding: 12px 28px;
-      font-size: 0.8rem;
-      color: var(--muted);
-      text-decoration: none;
-      transition: color 0.2s, background 0.2s;
-    }
-    .result-link:hover { color: var(--accent); background: var(--surface2); }
-
-    .btn-like {
-      padding: 12px 20px;
-      background: none;
-      border: none;
-      border-left: 1px solid var(--border);
-      cursor: pointer;
-      font-size: 1.3rem;
-      transition: transform 0.15s;
-      line-height: 1;
-    }
-    .btn-like:hover { transform: scale(1.2); }
-    .btn-like.liked { filter: none; }
-
-    /* Nav tabs */
-    .nav {
-      display: flex;
-      gap: 4px;
-      margin-bottom: 28px;
-    }
-    .nav-tab {
-      padding: 8px 20px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--muted);
-      font-size: 0.8rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .nav-tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
-
-    /* Views */
-    .view { display: none; width: 100%; max-width: 700px; flex-direction: column; align-items: center; }
-    .view.active { display: flex; }
-
-    /* Likes list */
-    .likes-list { width: 100%; display: flex; flex-direction: column; gap: 12px; }
-    .like-item {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 14px 18px;
-      transition: border-color 0.2s;
-    }
-    .like-item:hover { border-color: var(--accent2); }
-    .like-cover {
-      width: 52px;
-      height: 52px;
-      border-radius: 6px;
-      object-fit: cover;
-      background: var(--surface2);
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.4rem;
-      color: var(--border);
-      overflow: hidden;
-    }
-    .like-cover img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
-    .like-info { flex: 1; min-width: 0; }
-    .like-title { font-size: 0.9rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .like-artist { font-size: 0.8rem; color: var(--accent); }
-    .like-meta { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
-    .like-actions { display: flex; gap: 8px; flex-shrink: 0; }
-    .like-btn-small {
-      padding: 5px 10px;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      border: 1px solid var(--border);
-      background: none;
-      color: var(--muted);
-      cursor: pointer;
-      transition: all 0.2s;
-      text-decoration: none;
-    }
-    .like-btn-small:hover { border-color: var(--accent); color: var(--accent); }
-    .like-btn-remove { }
-    .like-btn-remove:hover { border-color: #e07070; color: #e07070; }
-    .likes-empty { color: var(--muted); font-size: 0.9rem; text-align: center; padding: 40px; }
-
-    .youtube-section {
-      border-top: 1px solid var(--border);
-      background: #000;
-      position: relative;
-    }
-    .youtube-section iframe {
-      display: block;
-      width: 100%;
-      height: 260px;
-      border: none;
-    }
-    .youtube-label {
-      position: absolute;
-      top: 8px;
-      left: 12px;
-      font-size: 0.65rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--muted);
-      background: rgba(0,0,0,0.6);
-      padding: 2px 6px;
-      border-radius: 4px;
-      pointer-events: none;
-    }
-
-    .error-msg {
-      text-align: center;
-      color: #e07070;
-      font-size: 0.9rem;
+      border: var(--rule);
+      border-top: none;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.8rem;
+      letter-spacing: 0.15em;
       padding: 20px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.2s, color 0.2s;
+      margin-bottom: 48px;
+    }
+    .btn-dig::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--accent);
+      transform: translateX(-100%);
+      transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      z-index: 0;
+    }
+    .btn-dig:hover::before { transform: translateX(0); }
+    .btn-dig:active { transform: scale(0.99); }
+    .btn-dig:disabled { background: var(--muted); cursor: not-allowed; }
+    .btn-dig:disabled::before { display: none; }
+    .btn-dig span { position: relative; z-index: 1; }
+
+    /* ── Error ── */
+    .error-msg {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      padding: 12px 20px;
+      margin-bottom: 24px;
       display: none;
     }
     .error-msg.visible { display: block; }
 
-    @media (max-width: 600px) {
-      body { padding: 20px 12px; }
+    /* ── Result card ── */
+    .result-wrap {
+      display: none;
+      border: var(--rule);
+    }
+    .result-wrap.visible { display: block; }
 
-      h1 { font-size: 1.3rem; margin-bottom: 4px; }
-      .subtitle { margin-bottom: 24px; }
+    /* Header of result */
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: var(--rule);
+      padding: 8px 20px;
+      background: var(--ink);
+      color: var(--paper);
+    }
 
-      .card { padding: 18px 16px; margin-bottom: 14px; }
-      .filters-grid { grid-template-columns: 1fr; gap: 20px; }
-      .filter-group.full { grid-column: 1; }
+    .result-header-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #9A8A78;
+    }
 
-      .btn-randomize { padding: 18px; font-size: 1.05rem; margin-bottom: 18px; }
+    .result-header-id {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--gold);
+      letter-spacing: 0.1em;
+    }
 
-      /* Result card en colonne */
-      .result-inner { flex-direction: column; }
-      .cover-wrapper { width: 100%; height: 220px; }
-      .result-info { padding: 16px; gap: 5px; }
-      .result-title { font-size: 1.05rem; }
+    /* Body */
+    .result-body {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+    }
 
-      /* Scores sur 2 colonnes */
-      .result-scores {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        padding-top: 10px;
-      }
+    .cover-col {
+      border-right: var(--rule);
+      position: relative;
+      overflow: hidden;
+      background: var(--paper2);
+      min-height: 260px;
+    }
 
-      /* YouTube plus court */
-      .youtube-section iframe { height: 200px; }
+    .cover-col img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+      position: absolute;
+      inset: 0;
+    }
+    .cover-col img.loaded { display: block; }
 
-      /* Footer */
-      .result-link { padding: 12px 16px; font-size: 0.75rem; }
-      .btn-like { padding: 12px 16px; }
+    .cover-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-      /* Nav */
-      .nav { margin-bottom: 20px; }
-      .nav-tab { padding: 8px 14px; font-size: 0.75rem; }
+    .cover-placeholder-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 5rem;
+      color: #C5BAA8;
+      writing-mode: vertical-rl;
+      letter-spacing: 0.15em;
+      opacity: 0.5;
+      user-select: none;
+    }
 
-      /* Likes */
-      .like-item { padding: 10px 12px; gap: 10px; }
-      .like-cover { width: 44px; height: 44px; }
-      .like-title { font-size: 0.85rem; }
-      .like-actions { flex-direction: column; gap: 4px; }
-      .like-btn-small { padding: 4px 8px; font-size: 0.7rem; }
+    /* Stamp overlay on cover */
+    .cover-stamp {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.55rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--paper);
+      background: var(--accent);
+      padding: 3px 8px;
+      opacity: 0;
+      transform: rotate(-4deg);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    .result-wrap.visible .cover-stamp {
+      opacity: 1;
+      transform: rotate(-4deg);
+      transition-delay: 0.4s;
+    }
+
+    /* Info col */
+    .info-col {
+      padding: 24px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .info-issue {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .info-title {
+      font-family: 'Crimson Pro', serif;
+      font-size: 1.65rem;
+      font-style: italic;
+      line-height: 1.2;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .info-artist {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 16px;
+    }
+
+    .info-meta {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 20px;
+    }
+
+    .tag {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border: 1px solid #C5BAA8;
+      color: var(--muted);
+    }
+    .tag.genre {
+      border-color: var(--ink);
+      color: var(--ink);
+      background: transparent;
+      font-weight: 700;
+    }
+
+    /* Data grid */
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top: var(--rule-thin);
+      margin-top: auto;
+    }
+
+    .data-cell {
+      padding: 10px 0;
+      border-right: var(--rule-thin);
+    }
+    .data-cell:last-child { border-right: none; }
+
+    .data-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.52rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .data-value {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .data-value.accent { color: var(--accent); }
+
+    /* Community row (below main body) */
+    .community-strip {
+      border-top: var(--rule-thin);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      background: var(--paper2);
+    }
+
+    .community-cell {
+      padding: 12px 20px;
+      border-right: var(--rule-thin);
+    }
+    .community-cell:last-child { border-right: none; }
+
+    /* ── YouTube ── */
+    .youtube-wrap {
+      border-top: var(--rule);
+      background: #0D0D0D;
+      position: relative;
+    }
+
+    .youtube-wrap iframe {
+      display: block;
+      width: 100%;
+      height: 280px;
+      border: none;
+    }
+
+    .youtube-badge {
+      position: absolute;
+      top: 0; left: 0;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      background: var(--accent);
+      color: #fff;
+      padding: 4px 10px;
+    }
+
+    .youtube-title-bar {
+      border-top: 1px solid #222;
+      padding: 8px 14px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.62rem;
+      color: #888;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Footer actions ── */
+    .result-actions {
+      border-top: var(--rule);
+      display: flex;
+    }
+
+    .action-link {
+      flex: 1;
+      padding: 13px 20px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-decoration: none;
+      border-right: var(--rule-thin);
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .action-link:hover {
+      background: var(--paper2);
+      color: var(--ink);
+    }
+
+    .btn-like {
+      padding: 13px 24px;
+      background: none;
+      border: none;
+      border-left: var(--rule-thin);
+      cursor: pointer;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      transition: background 0.2s, color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-like:hover { background: var(--paper2); color: var(--ink); }
+    .btn-like.liked {
+      background: var(--ink);
+      color: var(--paper);
+    }
+    .btn-like.liked:hover { background: var(--ink2); }
+
+    /* ── Likes view ── */
+    .likes-empty {
+      font-family: 'Crimson Pro', serif;
+      font-style: italic;
+      color: var(--muted);
+      text-align: center;
+      padding: 60px 20px;
+      font-size: 1.1rem;
+    }
+
+    .likes-list { display: flex; flex-direction: column; }
+
+    .like-item {
+      display: grid;
+      grid-template-columns: 64px 1fr auto;
+      align-items: center;
+      gap: 0;
+      border: var(--rule);
+      border-bottom: none;
+      transition: background 0.15s;
+    }
+    .like-item:last-child { border-bottom: var(--rule); }
+    .like-item:hover { background: var(--paper2); }
+
+    .like-cover-cell {
+      width: 64px;
+      height: 64px;
+      border-right: var(--rule-thin);
+      background: var(--paper2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      color: #C5BAA8;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .like-cover-cell img {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+    }
+
+    .like-info-cell {
+      padding: 10px 16px;
+      min-width: 0;
+    }
+
+    .like-title {
+      font-family: 'Crimson Pro', serif;
+      font-style: italic;
+      font-size: 1rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .like-artist {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.95rem;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .like-meta {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .like-actions-cell {
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .like-btn {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 5px 10px;
+      border: 1px solid #C5BAA8;
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .like-btn:hover { border-color: var(--ink); color: var(--ink); }
+    .like-btn.remove:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .masthead { padding: 0 16px; }
+      .masthead-right { display: none; }
+      .container { padding: 24px 16px; }
+
+      .filter-grid { grid-template-columns: 1fr; }
+      .filter-cell { border-right: none; }
+      .filter-cell.wide { grid-column: 1; }
+
+      .result-body { grid-template-columns: 1fr; }
+      .cover-col { min-height: 200px; border-right: none; border-bottom: var(--rule); }
+      .info-col { padding: 16px; }
+
+      .data-grid { grid-template-columns: repeat(2, 1fr); }
+      .community-strip { grid-template-columns: repeat(2, 1fr); }
+      .community-cell:nth-child(2) { border-right: none; }
+      .community-cell:nth-child(3) { border-right: var(--rule-thin); }
+
+      .youtube-wrap iframe { height: 200px; }
     }
   </style>
 </head>
 <body>
 
-  <h1>💎 GemDigger</h1>
-  <p class="subtitle">Trouve ton prochain sample</p>
+  <!-- ── Masthead ── -->
+  <header class="masthead">
+    <div class="masthead-title">GEM<span>DIG</span>GER</div>
+    <div class="masthead-right">
+      <div class="masthead-tagline">Sample Archaeology Tool</div>
+      <div class="masthead-tagline" style="color: var(--muted); font-size: 0.55rem;">Powered by Discogs · v2</div>
+    </div>
+  </header>
 
-  <div class="nav">
-    <button class="nav-tab active" onclick="showView('discover')">Découverte</button>
-    <button class="nav-tab" onclick="showView('likes')" id="tab-likes">♥ Mes likes</button>
-  </div>
+  <!-- ── Nav ── -->
+  <nav class="nav-strip">
+    <button class="nav-btn active" onclick="showView('discover', this)">Dig</button>
+    <button class="nav-btn" onclick="showView('likes', this)">Keeper List</button>
+  </nav>
 
-  <!-- VIEW: Découverte -->
-  <div class="view active" id="view-discover">
+  <!-- ── Main ── -->
+  <main class="container">
 
-  <div class="card">
-    <div class="filters-grid">
+    <!-- VIEW: Discover -->
+    <div class="view active" id="view-discover">
 
-      <!-- Popularity score -->
-      <div class="filter-group">
-        <label>Popularité</label>
-        <div class="slider-container">
-          <div id="slider-popularity"></div>
-          <div class="slider-values">
-            <span id="pop-min-val">0</span>
-            <span id="pop-max-val">100</span>
+      <p class="section-eyebrow">Session de fouille</p>
+      <h2 class="section-title">Définir les critères</h2>
+
+      <!-- Filters -->
+      <div class="filter-panel">
+        <div class="filter-panel-header">Filtres de recherche</div>
+        <div class="filter-grid">
+
+          <div class="filter-cell">
+            <span class="filter-label">Popularité</span>
+            <div id="slider-popularity"></div>
+            <div class="slider-vals">
+              <span id="pop-min-val">0</span>
+              <span id="pop-max-val">100</span>
+            </div>
           </div>
+
+          <div class="filter-cell">
+            <span class="filter-label">Période</span>
+            <div id="slider-year"></div>
+            <div class="slider-vals">
+              <span id="year-min-val">—</span>
+              <span id="year-max-val">—</span>
+            </div>
+          </div>
+
+          <div class="filter-cell">
+            <span class="filter-label">Genres</span>
+            <select id="select-genres" multiple placeholder="Tous les genres..."></select>
+          </div>
+
+          <div class="filter-cell">
+            <span class="filter-label">Pays</span>
+            <select id="select-countries" multiple placeholder="Tous les pays..."></select>
+          </div>
+
         </div>
       </div>
 
-      <!-- Période -->
-      <div class="filter-group">
-        <label>Période</label>
-        <div class="slider-container">
-          <div id="slider-year"></div>
-          <div class="slider-values">
-            <span id="year-min-val">—</span>
-            <span id="year-max-val">—</span>
+      <button class="btn-dig" id="btn-dig">
+        <span id="btn-dig-text">▶ &nbsp;DIG!</span>
+      </button>
+
+      <div class="error-msg" id="error-msg"></div>
+
+      <!-- Result -->
+      <div class="result-wrap" id="result-wrap">
+
+        <div class="result-header">
+          <span class="result-header-label">Release trouvée</span>
+          <span class="result-header-id" id="res-header-id"></span>
+        </div>
+
+        <div class="result-body">
+          <!-- Cover -->
+          <div class="cover-col" id="cover-col">
+            <div class="cover-placeholder">
+              <div class="cover-placeholder-text">VINYL</div>
+            </div>
+            <img id="cover-img" src="" alt="" />
+            <div class="cover-stamp" id="cover-stamp"></div>
+          </div>
+
+          <!-- Info -->
+          <div class="info-col">
+            <div class="info-issue" id="res-issue"></div>
+            <div class="info-title" id="res-title"></div>
+            <div class="info-artist" id="res-artist"></div>
+            <div class="info-meta" id="res-meta"></div>
+            <div class="tag-row" id="res-tags"></div>
+
+            <div class="data-grid">
+              <div class="data-cell">
+                <span class="data-label">Popularité</span>
+                <span class="data-value accent" id="res-pop"></span>
+              </div>
+              <div class="data-cell">
+                <span class="data-label">Rareté</span>
+                <span class="data-value" id="res-rarity">—</span>
+              </div>
+              <div class="data-cell">
+                <span class="data-label">Prix min</span>
+                <span class="data-value" id="res-price">—</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Genres -->
-      <div class="filter-group">
-        <label>Genres</label>
-        <select id="select-genres" multiple placeholder="Tous les genres..."></select>
-      </div>
-
-      <!-- Pays / Régions -->
-      <div class="filter-group">
-        <label>Pays</label>
-        <select id="select-countries" multiple placeholder="Tous les pays..."></select>
-      </div>
-
-    </div>
-  </div>
-
-  <button class="btn-randomize" id="btn-randomize">🎲 Randomiser</button>
-
-  <div class="error-msg" id="error-msg"></div>
-
-  <div class="result-card" id="result-card">
-    <div class="result-inner">
-      <div class="cover-wrapper" id="cover-wrapper">
-        <div class="cover-placeholder" id="cover-placeholder">♪</div>
-        <img id="cover-img" src="" alt="Cover" style="display:none" />
-      </div>
-      <div class="result-info">
-        <div class="result-title" id="res-title"></div>
-        <div class="result-artist" id="res-artist"></div>
-        <div class="result-meta" id="res-meta"></div>
-        <div id="res-tags"></div>
-        <div class="result-scores">
-          <div class="score-item">
-            <span class="score-label">Popularité</span>
-            <span class="score-value" id="res-popularity"></span>
+        <!-- Community strip -->
+        <div class="community-strip">
+          <div class="community-cell">
+            <span class="data-label">Have</span>
+            <span class="data-value" id="res-have">—</span>
           </div>
-          <div class="score-item">
-            <span class="score-label">Have</span>
-            <span class="score-value" id="res-have">—</span>
+          <div class="community-cell">
+            <span class="data-label">Want</span>
+            <span class="data-value" id="res-want">—</span>
           </div>
-          <div class="score-item">
-            <span class="score-label">Want</span>
-            <span class="score-value" id="res-want">—</span>
+          <div class="community-cell">
+            <span class="data-label">Label</span>
+            <span class="data-value" id="res-label" style="font-size:0.72rem; font-weight:400;">—</span>
           </div>
-          <div class="score-item">
-            <span class="score-label">Rareté</span>
-            <span class="score-value" id="res-rarity">—</span>
-          </div>
-          <div class="score-item">
-            <span class="score-label">Prix min</span>
-            <span class="score-value" id="res-price">—</span>
+          <div class="community-cell">
+            <span class="data-label">Pays</span>
+            <span class="data-value" id="res-country" style="font-size:0.72rem; font-weight:400;">—</span>
           </div>
         </div>
-      </div>
-    </div>
-    <div class="youtube-section" id="youtube-section" style="display:none">
-      <span class="youtube-label" id="youtube-video-title">YouTube</span>
-      <iframe id="youtube-iframe"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen>
-      </iframe>
-    </div>
-    <div class="result-footer">
-      <a class="result-link" id="res-link" href="#" target="_blank">Voir sur Discogs →</a>
-      <button class="btn-like" id="btn-like" title="Liker" onclick="toggleLike()">🤍</button>
-    </div>
-  </div>
 
-  </div><!-- end view-discover -->
+        <!-- YouTube -->
+        <div class="youtube-wrap" id="youtube-wrap" style="display:none">
+          <span class="youtube-badge">YouTube</span>
+          <iframe id="youtube-iframe"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen></iframe>
+          <div class="youtube-title-bar" id="youtube-title-bar"></div>
+        </div>
 
-  <!-- VIEW: Likes -->
-  <div class="view" id="view-likes">
-    <div class="likes-list" id="likes-list"></div>
-  </div>
+        <!-- Actions -->
+        <div class="result-actions">
+          <a class="action-link" id="res-discogs-link" href="#" target="_blank">↗ Voir sur Discogs</a>
+          <button class="btn-like" id="btn-like" onclick="toggleLike()">
+            <span id="like-icon">○</span>
+            <span id="like-label">Keeper</span>
+          </button>
+        </div>
+
+      </div><!-- /result-wrap -->
+    </div><!-- /view-discover -->
+
+    <!-- VIEW: Likes -->
+    <div class="view" id="view-likes">
+      <p class="section-eyebrow">Ma collection</p>
+      <h2 class="section-title">Keeper List</h2>
+      <div class="likes-list" id="likes-list"></div>
+    </div>
+
+  </main>
 
   <script>
-    let sliderPop, sliderYear;
-    let tsGenres, tsCountries;
+    let sliderPop, sliderYear, tsGenres, tsCountries;
     let currentAlbum = null;
     let likedIds = new Set();
 
-    function formatViews(n) {
-      if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0', '') + 'M';
-      if (n >= 1_000) return (n / 1_000).toFixed(0) + 'K';
-      return n.toString();
+    function fmt(n) {
+      if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0','') + 'M';
+      if (n >= 1_000) return Math.round(n / 1_000) + 'K';
+      return String(n);
     }
 
-    // ── Navigation ────────────────────────────────────────────────────────────
-    function showView(name) {
+    // ── Nav ──────────────────────────────────────────────────────────────────
+    function showView(name, el) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
       document.getElementById(`view-${name}`).classList.add('active');
-      event.target.classList.add('active');
+      el.classList.add('active');
       if (name === 'likes') loadLikes();
     }
 
-    // ── Likes ─────────────────────────────────────────────────────────────────
-    async function toggleLike() {
-      if (!currentAlbum) return;
-      const id = currentAlbum.discogs_id;
-      const btn = document.getElementById('btn-like');
-      if (likedIds.has(id)) {
-        await fetch(`/api/like/${id}`, { method: 'DELETE' });
-        likedIds.delete(id);
-        btn.textContent = '🤍';
-      } else {
-        await fetch(`/api/like/${id}`, { method: 'POST' });
-        likedIds.add(id);
-        btn.textContent = '❤️';
-      }
-    }
-
-    async function loadLikes() {
-      const res = await fetch('/api/likes');
-      const likes = await res.json();
-      likedIds = new Set(likes.map(l => l.discogs_id));
-
-      const container = document.getElementById('likes-list');
-      if (!likes.length) {
-        container.innerHTML = '<p class="likes-empty">Aucun like pour l\'instant — utilise ♥ sur un album pour le sauvegarder.</p>';
-        return;
-      }
-      container.innerHTML = likes.map(a => `
-        <div class="like-item" id="like-${a.discogs_id}">
-          <div class="like-cover" id="like-cover-${a.discogs_id}">♪</div>
-          <div class="like-info">
-            <div class="like-title">${a.title || '—'}</div>
-            <div class="like-artist">${a.artist || '—'}</div>
-            <div class="like-meta">${[a.year, a.country, (a.genres||[]).join(', ')].filter(Boolean).join(' · ')} · top ${a.popularity_score ?? '—'}%</div>
-          </div>
-          <div class="like-actions">
-            <a class="like-btn-small" href="https://www.discogs.com/release/${a.discogs_id}" target="_blank">Discogs</a>
-            <button class="like-btn-small like-btn-remove" onclick="removeLike(${a.discogs_id})">✕</button>
-          </div>
-        </div>
-      `).join('');
-
-      // Charge les covers en arrière-plan
-      likes.forEach(a => {
-        const coverEl = document.getElementById(`like-cover-${a.discogs_id}`);
-        if (!coverEl) return;
-        const img = new Image();
-        img.onload = () => { coverEl.innerHTML = ''; coverEl.appendChild(img); };
-        img.src = `/api/cover/${a.discogs_id}`;
-      });
-    }
-
-    async function removeLike(id) {
-      await fetch(`/api/like/${id}`, { method: 'DELETE' });
-      likedIds.delete(id);
-      const el = document.getElementById(`like-${id}`);
-      if (el) el.remove();
-      // Met à jour le cœur si c'est l'album courant
-      if (currentAlbum?.discogs_id === id) {
-        document.getElementById('btn-like').textContent = '🤍';
-      }
-    }
-
-    // ── Init filters ──────────────────────────────────────────────────────────
+    // ── Filters init ─────────────────────────────────────────────────────────
     async function initFilters() {
-      const res = await fetch('/api/filters');
-      const data = await res.json();
+      const data = await fetch('/api/filters').then(r => r.json());
 
-      // Popularity slider
       sliderPop = noUiSlider.create(document.getElementById('slider-popularity'), {
-        start: [0, 100],
-        connect: true,
-        range: { min: 0, max: 100 },
-        step: 1,
+        start: [0, 100], connect: true, range: { min: 0, max: 100 }, step: 1,
       });
-      sliderPop.on('update', (values) => {
-        document.getElementById('pop-min-val').textContent = Math.round(values[0]);
-        document.getElementById('pop-max-val').textContent = Math.round(values[1]);
+      sliderPop.on('update', v => {
+        document.getElementById('pop-min-val').textContent = Math.round(v[0]);
+        document.getElementById('pop-max-val').textContent = Math.round(v[1]);
       });
 
-      // Year slider
-      const yMin = data.year_min || 1955;
-      const yMax = data.year_max || 1990;
+      const yMin = data.year_min || 1955, yMax = data.year_max || 2000;
       sliderYear = noUiSlider.create(document.getElementById('slider-year'), {
-        start: [yMin, yMax],
-        connect: true,
-        range: { min: yMin, max: yMax },
-        step: 1,
+        start: [yMin, yMax], connect: true, range: { min: yMin, max: yMax }, step: 1,
       });
-      sliderYear.on('update', (values) => {
-        document.getElementById('year-min-val').textContent = Math.round(values[0]);
-        document.getElementById('year-max-val').textContent = Math.round(values[1]);
+      sliderYear.on('update', v => {
+        document.getElementById('year-min-val').textContent = Math.round(v[0]);
+        document.getElementById('year-max-val').textContent = Math.round(v[1]);
       });
 
-      // Genres select
       tsGenres = new TomSelect('#select-genres', {
         options: (data.genres || []).filter(g => g).map(g => ({ value: g, text: g })),
-        plugins: ['remove_button'],
-        maxOptions: 200,
+        plugins: ['remove_button'], maxOptions: 200,
       });
-
-      // Countries select
       tsCountries = new TomSelect('#select-countries', {
         options: (data.countries || []).filter(c => c).map(c => ({ value: c, text: c })),
-        plugins: ['remove_button'],
-        maxOptions: 300,
+        plugins: ['remove_button'], maxOptions: 300,
       });
     }
 
     // ── Randomize ─────────────────────────────────────────────────────────────
-    document.getElementById('btn-randomize').addEventListener('click', async () => {
-      const btn = document.getElementById('btn-randomize');
-      const errorEl = document.getElementById('error-msg');
+    document.getElementById('btn-dig').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-dig');
+      const txt = document.getElementById('btn-dig-text');
+      const err = document.getElementById('error-msg');
       btn.disabled = true;
-      btn.textContent = '⏳ Recherche...';
-      errorEl.classList.remove('visible');
+      txt.textContent = '⏳  Fouille en cours...';
+      err.classList.remove('visible');
 
-      const popValues = sliderPop.get();
-      const yearValues = sliderYear.get();
-      const genres = tsGenres.getValue();
-      const countries = tsCountries.getValue();
-
+      const pv = sliderPop.get(), yv = sliderYear.get();
       const params = new URLSearchParams({
-        popularity_min: Math.round(popValues[0]),
-        popularity_max: Math.round(popValues[1]),
-        year_min: Math.round(yearValues[0]),
-        year_max: Math.round(yearValues[1]),
+        popularity_min: Math.round(pv[0]),
+        popularity_max: Math.round(pv[1]),
+        year_min: Math.round(yv[0]),
+        year_max: Math.round(yv[1]),
       });
-      genres.forEach(g => params.append('genres', g));
-      countries.forEach(c => params.append('countries', c));
+      tsGenres.getValue().forEach(g => params.append('genres', g));
+      tsCountries.getValue().forEach(c => params.append('countries', c));
 
       try {
         const res = await fetch(`/api/random?${params}`);
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.detail || 'Erreur serveur');
+          const e = await res.json();
+          throw new Error(e.detail || 'Erreur serveur');
         }
         const album = await res.json();
-        await loadLikes();
+        await loadLikesQuiet();
         displayAlbum(album);
-      } catch (e) {
-        errorEl.textContent = e.message;
-        errorEl.classList.add('visible');
-        document.getElementById('result-card').classList.remove('visible');
+      } catch(e) {
+        err.textContent = e.message;
+        err.classList.add('visible');
+        document.getElementById('result-wrap').classList.remove('visible');
       } finally {
         btn.disabled = false;
-        btn.textContent = '🎲 Randomiser';
+        txt.innerHTML = '▶ &nbsp;DIG!';
       }
     });
 
-    // ── Display album ─────────────────────────────────────────────────────────
+    // ── Display ───────────────────────────────────────────────────────────────
     function displayAlbum(a) {
       currentAlbum = a;
-      // État du like
-      document.getElementById('btn-like').textContent = likedIds.has(a.discogs_id) ? '❤️' : '🤍';
+
+      document.getElementById('res-header-id').textContent = `#${a.discogs_id}`;
+      document.getElementById('res-issue').textContent =
+        [a.year, a.country].filter(Boolean).join(' · ');
       document.getElementById('res-title').textContent = a.title || '—';
       document.getElementById('res-artist').textContent = a.artist || '—';
-      document.getElementById('res-popularity').textContent = `${a.popularity_score ?? '—'} / 100`;
+      document.getElementById('res-meta').textContent =
+        [a.label, a.year].filter(Boolean).join(' — ');
+      document.getElementById('res-label').textContent = a.label || '—';
+      document.getElementById('res-country').textContent = a.country || '—';
+      document.getElementById('res-pop').textContent = `${a.popularity_score ?? '—'} / 100`;
+      document.getElementById('cover-stamp').textContent =
+        a.year ? `© ${a.year}` : '';
 
-      // Meta line
-      const meta = [];
-      if (a.year) meta.push(a.year);
-      if (a.country) meta.push(a.country);
-      if (a.label) meta.push(a.label);
-      document.getElementById('res-meta').textContent = meta.join(' · ');
-
-      // Tags genres + styles
+      // Tags
       const tagsEl = document.getElementById('res-tags');
-      const allTags = [...(a.genres || []), ...(a.styles || [])];
-      tagsEl.innerHTML = allTags.map((t, i) =>
-        `<span class="tag${i < (a.genres || []).length ? ' accent' : ''}">${t}</span>`
-      ).join(' ');
+      const genres = a.genres || [], styles = a.styles || [];
+      tagsEl.innerHTML = [
+        ...genres.map(t => `<span class="tag genre">${t}</span>`),
+        ...styles.map(t => `<span class="tag">${t}</span>`),
+      ].join('');
 
       // Discogs link
-      document.getElementById('res-link').href = `https://www.discogs.com/release/${a.discogs_id}`;
+      document.getElementById('res-discogs-link').href =
+        `https://www.discogs.com/release/${a.discogs_id}`;
+
+      // Like state
+      const liked = likedIds.has(a.discogs_id);
+      syncLikeBtn(liked);
+
+      // Reset community
+      ['res-have','res-want','res-rarity','res-price'].forEach(id => {
+        document.getElementById(id).textContent = '—';
+      });
 
       // Cover
       const img = document.getElementById('cover-img');
-      const placeholder = document.getElementById('cover-placeholder');
-      img.style.display = 'none';
-      placeholder.style.display = 'flex';
+      img.classList.remove('loaded');
       img.src = `/api/cover/${a.discogs_id}`;
-      img.onload = () => {
-        img.style.display = 'block';
-        placeholder.style.display = 'none';
-      };
-      img.onerror = () => {
-        img.style.display = 'none';
-        placeholder.style.display = 'flex';
-      };
+      img.onload = () => img.classList.add('loaded');
+      img.onerror = () => {};
 
-      // Reset community fields
-      document.getElementById('res-have').textContent = '—';
-      document.getElementById('res-want').textContent = '—';
-      document.getElementById('res-rarity').textContent = '—';
-      document.getElementById('res-price').textContent = '—';
+      // Show card
+      const wrap = document.getElementById('result-wrap');
+      wrap.classList.add('visible');
 
-      document.getElementById('result-card').classList.add('visible');
-
-      // Community data from Discogs
-      fetch(`/api/discogs/${a.discogs_id}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(d => {
-          if (!d) return;
-          document.getElementById('res-have').textContent = d.community_have?.toLocaleString('fr-FR') ?? '—';
-          document.getElementById('res-want').textContent = d.community_want?.toLocaleString('fr-FR') ?? '—';
-          document.getElementById('res-rarity').textContent = d.rarity_score != null ? d.rarity_score.toFixed(2) : '—';
-          document.getElementById('res-price').textContent = d.lowest_price != null ? `$${d.lowest_price}` : '—';
-        })
-        .catch(() => {});
-
-      // YouTube — recherche via backend
-      const ytSection = document.getElementById('youtube-section');
+      // YouTube
+      const ytWrap = document.getElementById('youtube-wrap');
       const ytIframe = document.getElementById('youtube-iframe');
-      const ytLabel = document.getElementById('youtube-video-title');
-      ytSection.style.display = 'none';
+      const ytTitle = document.getElementById('youtube-title-bar');
+      ytWrap.style.display = 'none';
       ytIframe.src = '';
 
       fetch(`/api/youtube?artist=${encodeURIComponent(a.artist)}&title=${encodeURIComponent(a.title)}`)
@@ -796,13 +1065,109 @@
         .then(yt => {
           if (!yt) return;
           ytIframe.src = `https://www.youtube.com/embed/${yt.video_id}?autoplay=0`;
-          const views = yt.view_count ? ` · ${formatViews(yt.view_count)} vues` : '';
-          ytLabel.textContent = `YouTube · ${yt.video_title}${views}`;
-          ytSection.style.display = 'block';
+          const views = yt.view_count ? ` · ${fmt(yt.view_count)} vues` : '';
+          ytTitle.textContent = `${yt.video_title}${views}`;
+          ytWrap.style.display = 'block';
         })
         .catch(() => {});
 
-      document.getElementById('result-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Community (Discogs API)
+      fetch(`/api/discogs/${a.discogs_id}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (!d) return;
+          document.getElementById('res-have').textContent =
+            d.community_have != null ? d.community_have.toLocaleString('fr-FR') : '—';
+          document.getElementById('res-want').textContent =
+            d.community_want != null ? d.community_want.toLocaleString('fr-FR') : '—';
+          document.getElementById('res-rarity').textContent =
+            d.rarity_score != null ? d.rarity_score.toFixed(2) : '—';
+          document.getElementById('res-price').textContent =
+            d.lowest_price != null ? `$${d.lowest_price}` : '—';
+        })
+        .catch(() => {});
+
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function syncLikeBtn(liked) {
+      const btn = document.getElementById('btn-like');
+      const icon = document.getElementById('like-icon');
+      const label = document.getElementById('like-label');
+      if (liked) {
+        btn.classList.add('liked');
+        icon.textContent = '●';
+        label.textContent = 'Dans la liste';
+      } else {
+        btn.classList.remove('liked');
+        icon.textContent = '○';
+        label.textContent = 'Keeper';
+      }
+    }
+
+    // ── Likes ─────────────────────────────────────────────────────────────────
+    async function toggleLike() {
+      if (!currentAlbum) return;
+      const id = currentAlbum.discogs_id;
+      if (likedIds.has(id)) {
+        await fetch(`/api/like/${id}`, { method: 'DELETE' });
+        likedIds.delete(id);
+        syncLikeBtn(false);
+      } else {
+        await fetch(`/api/like/${id}`, { method: 'POST' });
+        likedIds.add(id);
+        syncLikeBtn(true);
+      }
+    }
+
+    async function loadLikesQuiet() {
+      try {
+        const likes = await fetch('/api/likes').then(r => r.json());
+        likedIds = new Set(likes.map(l => l.discogs_id));
+      } catch(e) {}
+    }
+
+    async function loadLikes() {
+      await loadLikesQuiet();
+      const container = document.getElementById('likes-list');
+      if (!likedIds.size) {
+        container.innerHTML = '<p class="likes-empty">Aucun keeper pour l\'instant — creuse et marque tes gemmes.</p>';
+        return;
+      }
+      const likes = await fetch('/api/likes').then(r => r.json());
+      container.innerHTML = likes.map(a => `
+        <div class="like-item" id="like-${a.discogs_id}">
+          <div class="like-cover-cell" id="lc-${a.discogs_id}">♪</div>
+          <div class="like-info-cell">
+            <div class="like-title">${a.title || '—'}</div>
+            <div class="like-artist">${a.artist || '—'}</div>
+            <div class="like-meta">${[a.year, a.country, (a.genres||[]).join(', ')].filter(Boolean).join(' · ')} · top ${a.popularity_score ?? '—'}%</div>
+          </div>
+          <div class="like-actions-cell">
+            <a class="like-btn" href="https://www.discogs.com/release/${a.discogs_id}" target="_blank">Discogs</a>
+            <button class="like-btn remove" onclick="removeLike(${a.discogs_id})">✕</button>
+          </div>
+        </div>
+      `).join('');
+
+      likes.forEach(a => {
+        const el = document.getElementById(`lc-${a.discogs_id}`);
+        if (!el) return;
+        const img = new Image();
+        img.onload = () => { el.textContent = ''; el.appendChild(img); };
+        img.src = `/api/cover/${a.discogs_id}`;
+      });
+    }
+
+    async function removeLike(id) {
+      await fetch(`/api/like/${id}`, { method: 'DELETE' });
+      likedIds.delete(id);
+      document.getElementById(`like-${id}`)?.remove();
+      if (!document.querySelector('.like-item')) {
+        document.getElementById('likes-list').innerHTML =
+          '<p class="likes-empty">Aucun keeper pour l\'instant — creuse et marque tes gemmes.</p>';
+      }
+      if (currentAlbum?.discogs_id === id) syncLikeBtn(false);
     }
 
     initFilters();
