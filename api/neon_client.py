@@ -46,8 +46,15 @@ class NeonClient:
             resp.raise_for_status()
             data = resp.json()
 
+        rows = data.get("rows", [])
+        if not rows:
+            return []
+        # Neon HTTP API retourne les rows comme des dicts directement
+        if isinstance(rows[0], dict):
+            return rows
+        # Fallback : rows comme arrays de valeurs
         fields = [f["name"] for f in data.get("fields", [])]
-        return [dict(zip(fields, row)) for row in data.get("rows", [])]
+        return [dict(zip(fields, row)) for row in rows]
 
     def execute_many(self, statements: list[dict]) -> None:
         """Exécute plusieurs requêtes en une seule transaction HTTP."""
