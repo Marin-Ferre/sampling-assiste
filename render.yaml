@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: sampling-assiste
+    runtime: docker
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
+    envVars:
+      - key: NEON_DSN
+        sync: false   # à renseigner manuellement dans le dashboard Render
+      - key: DISCOGS_TOKEN
+        sync: false
+    healthCheckPath: /api/filters
+    autoDeploy: true  # redéploiement automatique à chaque push sur main
