@@ -54,11 +54,12 @@ def get_filters():
     genres = [r["genre"] for r in neon.execute("""
         SELECT DISTINCT unnest(genres) as genre
         FROM dim_releases
+        WHERE genres IS NOT NULL
         ORDER BY genre
-    """)]
+    """) if r["genre"] is not None]
     countries = [r["country"] for r in neon.execute("""
         SELECT DISTINCT country FROM dim_releases
-        WHERE country IS NOT NULL ORDER BY country
+        WHERE country IS NOT NULL AND country != '' ORDER BY country
     """)]
     rows = neon.execute("""
         SELECT MIN(year) as year_min, MAX(year) as year_max

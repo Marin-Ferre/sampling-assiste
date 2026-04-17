@@ -625,14 +625,14 @@
 
       // Genres select
       tsGenres = new TomSelect('#select-genres', {
-        options: data.genres.map(g => ({ value: g, text: g })),
+        options: (data.genres || []).filter(g => g).map(g => ({ value: g, text: g })),
         plugins: ['remove_button'],
         maxOptions: 200,
       });
 
       // Countries select
       tsCountries = new TomSelect('#select-countries', {
-        options: data.countries.map(c => ({ value: c, text: c })),
+        options: (data.countries || []).filter(c => c).map(c => ({ value: c, text: c })),
         plugins: ['remove_button'],
         maxOptions: 300,
       });
