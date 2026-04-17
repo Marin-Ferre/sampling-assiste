@@ -202,6 +202,31 @@ def search_youtube(artist: str, title: str, threshold: float = 0.45):
     raise HTTPException(status_code=404, detail="Aucune vidéo suffisamment proche")
 
 
+# ── Discogs community data ───────────────────────────────────────────────────
+
+@app.get("/api/discogs/{discogs_id}")
+async def get_discogs_community(discogs_id: int):
+    headers = {
+        "Authorization": f"Discogs token={DISCOGS_TOKEN}",
+        "User-Agent": "GemDigger/0.1",
+    }
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.get(f"{DISCOGS_BASE_URL}/releases/{discogs_id}", headers=headers)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=resp.status_code, detail="Discogs API error")
+        data = resp.json()
+    community = data.get("community", {})
+    have = community.get("have", 0)
+    want = community.get("want", 0)
+    rarity = round(want / have, 4) if have > 0 else float(want)
+    return {
+        "community_have": have,
+        "community_want": want,
+        "rarity_score": rarity,
+        "lowest_price": data.get("lowest_price"),
+    }
+
+
 # ── Static frontend ───────────────────────────────────────────────────────────
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

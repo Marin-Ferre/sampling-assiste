@@ -514,6 +514,22 @@
             <span class="score-label">Popularité</span>
             <span class="score-value" id="res-popularity"></span>
           </div>
+          <div class="score-item">
+            <span class="score-label">Have</span>
+            <span class="score-value" id="res-have">—</span>
+          </div>
+          <div class="score-item">
+            <span class="score-label">Want</span>
+            <span class="score-value" id="res-want">—</span>
+          </div>
+          <div class="score-item">
+            <span class="score-label">Rareté</span>
+            <span class="score-value" id="res-rarity">—</span>
+          </div>
+          <div class="score-item">
+            <span class="score-label">Prix min</span>
+            <span class="score-value" id="res-price">—</span>
+          </div>
         </div>
       </div>
     </div>
@@ -748,7 +764,25 @@
         placeholder.style.display = 'flex';
       };
 
+      // Reset community fields
+      document.getElementById('res-have').textContent = '—';
+      document.getElementById('res-want').textContent = '—';
+      document.getElementById('res-rarity').textContent = '—';
+      document.getElementById('res-price').textContent = '—';
+
       document.getElementById('result-card').classList.add('visible');
+
+      // Community data from Discogs
+      fetch(`/api/discogs/${a.discogs_id}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (!d) return;
+          document.getElementById('res-have').textContent = d.community_have?.toLocaleString('fr-FR') ?? '—';
+          document.getElementById('res-want').textContent = d.community_want?.toLocaleString('fr-FR') ?? '—';
+          document.getElementById('res-rarity').textContent = d.rarity_score != null ? d.rarity_score.toFixed(2) : '—';
+          document.getElementById('res-price').textContent = d.lowest_price != null ? `$${d.lowest_price}` : '—';
+        })
+        .catch(() => {});
 
       // YouTube — recherche via backend
       const ytSection = document.getElementById('youtube-section');
