@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;display=swap');
+    </style>
+  </defs>
+  <!-- Background paper -->
+  <rect width="64" height="64" fill="#F4EFE4"/>
+  <!-- Border -->
+  <rect width="64" height="64" fill="none" stroke="#1A1410" stroke-width="3"/>
+  <!-- Accent bar bottom -->
+  <rect x="0" y="54" width="64" height="10" fill="#C93A1A"/>
+  <!-- G in black -->
+  <text
+    x="4" y="52"
+    font-family="'Bebas Neue', Impact, sans-serif"
+    font-size="48"
+    fill="#1A1410"
+    letter-spacing="-1"
+  >G</text>
+  <!-- D in red -->
+  <text
+    x="30" y="52"
+    font-family="'Bebas Neue', Impact, sans-serif"
+    font-size="48"
+    fill="#C93A1A"
+    letter-spacing="-1"
+  >D</text>
+</svg>
