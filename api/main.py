@@ -100,9 +100,7 @@ def get_random(
     where = " AND ".join(conditions)
     sql = f"""
         SELECT discogs_id, title, artist, year, country,
-               genres, styles, label, master_id,
-               community_have, community_want, community_sum,
-               popularity_score, rarity_score, lowest_price
+               genres, styles, label, popularity_score
         FROM dim_releases
         WHERE {where}
         ORDER BY RANDOM()
@@ -161,9 +159,7 @@ def get_likes():
     neon = get_neon()
     return neon.execute("""
         SELECT r.discogs_id, r.title, r.artist, r.year, r.country,
-               r.genres, r.styles, r.label,
-               r.community_have, r.community_want,
-               r.popularity_score, r.rarity_score, r.lowest_price,
+               r.genres, r.styles, r.label, r.popularity_score,
                l.liked_at
         FROM likes l
         JOIN dim_releases r USING (discogs_id)

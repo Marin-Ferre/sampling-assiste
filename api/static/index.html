@@ -514,22 +514,6 @@
             <span class="score-label">Popularité</span>
             <span class="score-value" id="res-popularity"></span>
           </div>
-          <div class="score-item">
-            <span class="score-label">Rareté</span>
-            <span class="score-value" id="res-rarity"></span>
-          </div>
-          <div class="score-item">
-            <span class="score-label">Have</span>
-            <span class="score-value" id="res-have"></span>
-          </div>
-          <div class="score-item">
-            <span class="score-label">Want</span>
-            <span class="score-value" id="res-want"></span>
-          </div>
-          <div class="score-item" id="score-price-wrap">
-            <span class="score-label">Prix min</span>
-            <span class="score-value" id="res-price"></span>
-          </div>
         </div>
       </div>
     </div>
@@ -606,7 +590,7 @@
           <div class="like-info">
             <div class="like-title">${a.title || '—'}</div>
             <div class="like-artist">${a.artist || '—'}</div>
-            <div class="like-meta">${[a.year, a.country, (a.genres||[]).join(', ')].filter(Boolean).join(' · ')} · popularité ${a.popularity_score ?? '—'}/100</div>
+            <div class="like-meta">${[a.year, a.country, (a.genres||[]).join(', ')].filter(Boolean).join(' · ')} · top ${a.popularity_score ?? '—'}%</div>
           </div>
           <div class="like-actions">
             <a class="like-btn-small" href="https://www.discogs.com/release/${a.discogs_id}" target="_blank">Discogs</a>
@@ -731,17 +715,6 @@
       document.getElementById('res-title').textContent = a.title || '—';
       document.getElementById('res-artist').textContent = a.artist || '—';
       document.getElementById('res-popularity').textContent = `${a.popularity_score ?? '—'} / 100`;
-      document.getElementById('res-rarity').textContent = a.rarity_score ?? '—';
-      document.getElementById('res-have').textContent = (a.community_have ?? 0).toLocaleString();
-      document.getElementById('res-want').textContent = (a.community_want ?? 0).toLocaleString();
-
-      const priceWrap = document.getElementById('score-price-wrap');
-      if (a.lowest_price) {
-        document.getElementById('res-price').textContent = `$${a.lowest_price}`;
-        priceWrap.style.display = '';
-      } else {
-        priceWrap.style.display = 'none';
-      }
 
       // Meta line
       const meta = [];
