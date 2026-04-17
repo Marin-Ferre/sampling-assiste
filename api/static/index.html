@@ -393,11 +393,49 @@
     }
     .error-msg.visible { display: block; }
 
-    @media (max-width: 560px) {
-      .filters-grid { grid-template-columns: 1fr; }
+    @media (max-width: 600px) {
+      body { padding: 20px 12px; }
+
+      h1 { font-size: 1.3rem; margin-bottom: 4px; }
+      .subtitle { margin-bottom: 24px; }
+
+      .card { padding: 18px 16px; margin-bottom: 14px; }
+      .filters-grid { grid-template-columns: 1fr; gap: 20px; }
       .filter-group.full { grid-column: 1; }
+
+      .btn-randomize { padding: 18px; font-size: 1.05rem; margin-bottom: 18px; }
+
+      /* Result card en colonne */
       .result-inner { flex-direction: column; }
-      .cover-wrapper { width: 100%; height: 240px; }
+      .cover-wrapper { width: 100%; height: 220px; }
+      .result-info { padding: 16px; gap: 5px; }
+      .result-title { font-size: 1.05rem; }
+
+      /* Scores sur 2 colonnes */
+      .result-scores {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding-top: 10px;
+      }
+
+      /* YouTube plus court */
+      .youtube-section iframe { height: 200px; }
+
+      /* Footer */
+      .result-link { padding: 12px 16px; font-size: 0.75rem; }
+      .btn-like { padding: 12px 16px; }
+
+      /* Nav */
+      .nav { margin-bottom: 20px; }
+      .nav-tab { padding: 8px 14px; font-size: 0.75rem; }
+
+      /* Likes */
+      .like-item { padding: 10px 12px; gap: 10px; }
+      .like-cover { width: 44px; height: 44px; }
+      .like-title { font-size: 0.85rem; }
+      .like-actions { flex-direction: column; gap: 4px; }
+      .like-btn-small { padding: 4px 8px; font-size: 0.7rem; }
     }
   </style>
 </head>
