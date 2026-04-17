@@ -196,7 +196,12 @@ def search_youtube(artist: str, title: str, threshold: float = 0.45):
         score = _similarity(query, video_title)
         logger.info("YouTube candidat: %s (score=%.2f)", video_title, score)
         if score >= threshold:
-            return {"video_id": entry["id"], "video_title": video_title, "score": round(score, 2)}
+            return {
+                "video_id": entry["id"],
+                "video_title": video_title,
+                "score": round(score, 2),
+                "view_count": entry.get("view_count"),
+            }
 
     raise HTTPException(status_code=404, detail="Aucune vidéo suffisamment proche")
 

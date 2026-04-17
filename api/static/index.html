@@ -559,6 +559,12 @@
     let currentAlbum = null;
     let likedIds = new Set();
 
+    function formatViews(n) {
+      if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0', '') + 'M';
+      if (n >= 1_000) return (n / 1_000).toFixed(0) + 'K';
+      return n.toString();
+    }
+
     // ── Navigation ────────────────────────────────────────────────────────────
     function showView(name) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -783,7 +789,8 @@
         .then(yt => {
           if (!yt) return;
           ytIframe.src = `https://www.youtube.com/embed/${yt.video_id}?autoplay=0`;
-          ytLabel.textContent = `YouTube · ${yt.video_title}`;
+          const views = yt.view_count ? ` · ${formatViews(yt.view_count)} vues` : '';
+          ytLabel.textContent = `YouTube · ${yt.video_title}${views}`;
           ytSection.style.display = 'block';
         })
         .catch(() => {});
