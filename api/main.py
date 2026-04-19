@@ -295,6 +295,50 @@ def get_random(
     return rows[0]
 
 
+# ── Rabbit Hole ───────────────────────────────────────────────────────────────
+
+@app.get("/api/rabbit")
+def get_rabbit(
+    mode: str = Query(...),                        # label | era | style
+    exclude_id: int = Query(...),
+    label: Optional[str] = Query(None),
+    country: Optional[str] = Query(None),
+    year: Optional[int] = Query(None),
+    styles: list[str] = Query(default=[]),
+    popularity_min: int = Query(0, ge=0, le=100),
+    popularity_max: int = Query(100, ge=0, le=100),
+):
+    conditions = [
+        f"discogs_id != {exclude_id}",
+        f"popularity_score >= {popularity_min}",
+        f"popularity_score <= {popularity_max}",
+    ]
+    if mode == "label" and label:
+        conditions.append(f"label = '{_sql_str_escape(label)}'")
+    elif mode == "era" and country and year:
+        conditions.append(f"country = '{_sql_str_escape(country)}'")
+        conditions.append(f"year BETWEEN {year - 5} AND {year + 5}")
+    elif mode == "style" and styles:
+        lst = ", ".join(f"'{_sql_str_escape(s)}'" for s in styles)
+        conditions.append(f"styles && ARRAY[{lst}]::text[]")
+    else:
+        raise HTTPException(400, "Paramètres invalides pour ce mode")
+
+    where = " AND ".join(conditions)
+    neon = get_neon()
+    rows = neon.execute(f"""
+        SELECT discogs_id, title, artist, year, country,
+               genres, styles, label, popularity_score
+        FROM dim_releases
+        WHERE {where}
+        ORDER BY RANDOM()
+        LIMIT 1
+    """)
+    if not rows:
+        raise HTTPException(404, "Aucune release trouvée pour ce rabbit hole")
+    return rows[0]
+
+
 # ── Cover proxy ───────────────────────────────────────────────────────────────
 
 @app.get("/api/cover/{discogs_id}")

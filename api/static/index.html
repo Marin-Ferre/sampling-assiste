@@ -456,6 +456,96 @@
     .btn-dig:disabled::before { display: none; }
     .btn-dig span { position: relative; z-index: 1; }
 
+    /* ── Rabbit Hole ── */
+    .rabbit-hole-btn {
+      width: 100%;
+      margin-top: 12px;
+      padding: 11px 20px;
+      background: none;
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .rabbit-hole-btn:hover { background: var(--gold); color: var(--paper); }
+
+    .rabbit-hole-panel {
+      display: none;
+      flex-direction: column;
+      gap: 0;
+      border: 2px solid var(--gold);
+      margin-top: 16px;
+    }
+    .rabbit-hole-panel.open { display: flex; }
+
+    .rabbit-breadcrumb {
+      padding: 8px 14px;
+      background: var(--gold);
+      color: var(--paper);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.05em;
+      line-height: 1.5;
+    }
+    .rabbit-breadcrumb-label { opacity: 0.7; display: block; margin-bottom: 2px; }
+
+    .rabbit-modes {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      border-bottom: 1px solid var(--gold);
+    }
+    .rabbit-mode-btn {
+      padding: 12px 8px;
+      background: none;
+      border: none;
+      border-right: 1px solid var(--gold);
+      color: var(--ink);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.15s;
+      line-height: 1.4;
+    }
+    .rabbit-mode-btn:last-child { border-right: none; }
+    .rabbit-mode-btn:hover { background: #B8922A22; }
+    .rabbit-mode-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .rabbit-nav {
+      display: flex;
+      gap: 0;
+    }
+    .rabbit-nav-btn {
+      flex: 1;
+      padding: 9px;
+      background: none;
+      border: none;
+      border-right: 1px solid var(--gold);
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+    }
+    .rabbit-nav-btn:last-child { border-right: none; }
+    .rabbit-nav-btn:hover { color: var(--ink); background: #B8922A11; }
+
+    .result-wrap.rabbit-active {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 1px var(--gold);
+    }
+    .result-wrap.rabbit-active .result-header {
+      background: var(--gold);
+      color: var(--paper);
+    }
+
     /* ── Error ── */
     .error-msg {
       font-family: 'Space Mono', monospace;
@@ -1072,6 +1162,34 @@
           </button>
         </div>
 
+        <!-- Rabbit hole trigger -->
+        <button class="rabbit-hole-btn" id="btn-rabbit" onclick="openRabbitHole()">
+          ↓ Follow the rabbit hole
+        </button>
+
+        <!-- Rabbit hole panel -->
+        <div class="rabbit-hole-panel" id="rabbit-panel">
+          <div class="rabbit-breadcrumb">
+            <span class="rabbit-breadcrumb-label">Rabbit hole</span>
+            <span id="rabbit-trail">—</span>
+          </div>
+          <div class="rabbit-modes">
+            <button class="rabbit-mode-btn" id="rb-label" onclick="digRabbit('label')">
+              Même<br>label
+            </button>
+            <button class="rabbit-mode-btn" id="rb-era" onclick="digRabbit('era')">
+              Même pays<br>& époque
+            </button>
+            <button class="rabbit-mode-btn" id="rb-style" onclick="digRabbit('style')">
+              Même<br>style
+            </button>
+          </div>
+          <div class="rabbit-nav">
+            <button class="rabbit-nav-btn" id="rb-back" onclick="rabbitBack()">← Remonter</button>
+            <button class="rabbit-nav-btn" onclick="exitRabbitHole()">✕ Sortir du rabbit hole</button>
+          </div>
+        </div>
+
       </div><!-- /result-wrap -->
     </div><!-- /view-discover -->
 
@@ -1090,6 +1208,10 @@
     let currentAlbum = null;
     let likedIds = new Set();
     let currentUser = null;  // { id, username } ou null
+
+    // ── Rabbit Hole state ─────────────────────────────────────────────────────
+    let rabbitHistory = [];   // [{album, modeLabel}]
+    let rabbitActive = false;
     let authTab = 'login';
 
     // ── Auth modal ───────────────────────────────────────────────────────────
@@ -1280,6 +1402,98 @@
       updateFacets();
     }
 
+    // ── Rabbit Hole ───────────────────────────────────────────────────────────
+
+    function openRabbitHole() {
+      rabbitActive = true;
+      rabbitHistory = [];
+      document.getElementById('rabbit-panel').classList.add('open');
+      document.getElementById('result-wrap').classList.add('rabbit-active');
+      document.getElementById('btn-rabbit').style.display = 'none';
+      updateRabbitUI();
+    }
+
+    function exitRabbitHole() {
+      rabbitActive = false;
+      rabbitHistory = [];
+      document.getElementById('rabbit-panel').classList.remove('open');
+      document.getElementById('result-wrap').classList.remove('rabbit-active');
+      document.getElementById('btn-rabbit').style.display = '';
+    }
+
+    function updateRabbitUI() {
+      const trail = rabbitHistory.map(h => h.modeLabel).join(' → ');
+      document.getElementById('rabbit-trail').textContent = trail || (currentAlbum ? `${currentAlbum.artist} — ${currentAlbum.title}` : '—');
+      document.getElementById('rb-back').disabled = rabbitHistory.length === 0;
+
+      // Disable mode buttons if current album lacks the required field
+      const a = currentAlbum;
+      document.getElementById('rb-label').disabled = !a || !a.label;
+      document.getElementById('rb-era').disabled = !a || !a.country || !a.year;
+      document.getElementById('rb-style').disabled = !a || !a.styles || a.styles.length === 0;
+    }
+
+    async function digRabbit(mode) {
+      if (!currentAlbum) return;
+      const a = currentAlbum;
+      const pv = sliderPop.get();
+      const params = new URLSearchParams({
+        mode,
+        exclude_id: a.discogs_id,
+        popularity_min: Math.round(pv[0]),
+        popularity_max: Math.round(pv[1]),
+      });
+
+      let modeLabel = '';
+      if (mode === 'label') {
+        params.set('label', a.label);
+        modeLabel = `label ${a.label}`;
+      } else if (mode === 'era') {
+        params.set('country', a.country);
+        params.set('year', a.year);
+        modeLabel = `${a.country} ${a.year - 5}–${a.year + 5}`;
+      } else if (mode === 'style') {
+        (a.styles || []).forEach(s => params.append('styles', s));
+        modeLabel = (a.styles || []).slice(0, 2).join(', ');
+      }
+
+      // Disable buttons while loading
+      ['rb-label','rb-era','rb-style'].forEach(id => document.getElementById(id).disabled = true);
+
+      try {
+        const res = await fetch(`/api/rabbit?${params}`);
+        if (!res.ok) {
+          const e = await res.json();
+          throw new Error(e.detail || 'Aucune release trouvée');
+        }
+        const next = await res.json();
+
+        // Push current album to history
+        rabbitHistory.push({ album: a, modeLabel });
+
+        // Display new album (reuse existing display logic)
+        displayAlbum(next);
+        // Keep rabbit hole open and update UI
+        document.getElementById('rabbit-panel').classList.add('open');
+        document.getElementById('result-wrap').classList.add('rabbit-active');
+        document.getElementById('btn-rabbit').style.display = 'none';
+        updateRabbitUI();
+      } catch(e) {
+        alert(e.message);
+        updateRabbitUI();
+      }
+    }
+
+    function rabbitBack() {
+      if (rabbitHistory.length === 0) return;
+      const prev = rabbitHistory.pop();
+      displayAlbum(prev.album);
+      document.getElementById('rabbit-panel').classList.add('open');
+      document.getElementById('result-wrap').classList.add('rabbit-active');
+      document.getElementById('btn-rabbit').style.display = 'none';
+      updateRabbitUI();
+    }
+
     // ── Release count ─────────────────────────────────────────────────────────
     function buildFilterParams() {
       const pv = sliderPop.get(), yv = sliderYear.get();
@@ -1370,6 +1584,7 @@
         }
         const album = await res.json();
         await loadLikesQuiet();
+        exitRabbitHole();
         displayAlbum(album);
       } catch(e) {
         err.textContent = e.message;
@@ -1385,6 +1600,7 @@
     function displayAlbum(a) {
       currentAlbum = a;
 
+      document.querySelector('.result-header-label').textContent = rabbitActive ? 'Rabbit hole' : 'Release trouvée';
       document.getElementById('res-header-id').textContent = `#${a.discogs_id}`;
       document.getElementById('res-issue').textContent =
         [a.year, a.country].filter(Boolean).join(' · ');
@@ -1429,6 +1645,11 @@
       // Show card
       const wrap = document.getElementById('result-wrap');
       wrap.classList.add('visible');
+
+      // Rabbit hole: update trail if active, else show trigger button
+      if (rabbitActive) {
+        updateRabbitUI();
+      }
 
       // YouTube
       const ytWrap = document.getElementById('youtube-wrap');
