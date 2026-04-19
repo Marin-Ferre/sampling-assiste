@@ -412,6 +412,18 @@
     }
     .ts-wrapper.focus .ts-control { box-shadow: none !important; }
 
+    /* ── Release count ── */
+    .release-count {
+      text-align: center;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 14px;
+      letter-spacing: 0.03em;
+      transition: color 0.2s;
+    }
+    .release-count.loading { color: var(--paper2); }
+
     /* ── Dig button ── */
     .btn-dig {
       width: 100%;
@@ -966,6 +978,8 @@
         </div>
       </div>
 
+      <div class="release-count" id="release-count">— releases disponibles</div>
+
       <button class="btn-dig" id="btn-dig">
         <span id="btn-dig-text">DIG!</span>
       </button>
@@ -1179,6 +1193,7 @@
       sliderPop.on('update', v => {
         document.getElementById('pop-min-val').textContent = Math.round(v[0]);
         document.getElementById('pop-max-val').textContent = Math.round(v[1]);
+        debouncedCount();
       });
 
       const yMin = data.year_min || 1955, yMax = data.year_max || 2000;
@@ -1188,21 +1203,58 @@
       sliderYear.on('update', v => {
         document.getElementById('year-min-val').textContent = Math.round(v[0]);
         document.getElementById('year-max-val').textContent = Math.round(v[1]);
+        debouncedCount();
       });
 
       tsGenres = new TomSelect('#select-genres', {
         options: (data.genres || []).filter(g => g).map(g => ({ value: g, text: g })),
         plugins: ['remove_button'], maxOptions: 200,
+        onItemAdd: debouncedCount, onItemRemove: debouncedCount,
       });
       tsExcludeGenres = new TomSelect('#select-exclude-genres', {
         options: (data.genres || []).filter(g => g).map(g => ({ value: g, text: g })),
         plugins: ['remove_button'], maxOptions: 200,
+        onItemAdd: debouncedCount, onItemRemove: debouncedCount,
       });
       tsCountries = new TomSelect('#select-countries', {
         options: (data.countries || []).filter(c => c).map(c => ({ value: c, text: c })),
         plugins: ['remove_button'], maxOptions: 300,
+        onItemAdd: debouncedCount, onItemRemove: debouncedCount,
       });
+
+      updateCount();
     }
+
+    // ── Release count ─────────────────────────────────────────────────────────
+    function buildFilterParams() {
+      const pv = sliderPop.get(), yv = sliderYear.get();
+      const p = new URLSearchParams({
+        popularity_min: Math.round(pv[0]),
+        popularity_max: Math.round(pv[1]),
+        year_min: Math.round(yv[0]),
+        year_max: Math.round(yv[1]),
+      });
+      tsGenres.getValue().forEach(g => p.append('genres', g));
+      tsExcludeGenres.getValue().forEach(g => p.append('exclude_genres', g));
+      tsCountries.getValue().forEach(c => p.append('countries', c));
+      return p;
+    }
+
+    async function updateCount() {
+      const el = document.getElementById('release-count');
+      el.classList.add('loading');
+      try {
+        const data = await fetch(`/api/count?${buildFilterParams()}`).then(r => r.json());
+        el.textContent = `${data.count.toLocaleString('fr-FR')} releases disponibles`;
+      } catch {
+        el.textContent = '— releases disponibles';
+      } finally {
+        el.classList.remove('loading');
+      }
+    }
+
+    let _countTimer;
+    function debouncedCount() { clearTimeout(_countTimer); _countTimer = setTimeout(updateCount, 350); }
 
     // ── Randomize ─────────────────────────────────────────────────────────────
     document.getElementById('btn-dig').addEventListener('click', async () => {
@@ -1213,16 +1265,7 @@
       txt.textContent = '⏳  Fouille en cours...';
       err.classList.remove('visible');
 
-      const pv = sliderPop.get(), yv = sliderYear.get();
-      const params = new URLSearchParams({
-        popularity_min: Math.round(pv[0]),
-        popularity_max: Math.round(pv[1]),
-        year_min: Math.round(yv[0]),
-        year_max: Math.round(yv[1]),
-      });
-      tsGenres.getValue().forEach(g => params.append('genres', g));
-      tsExcludeGenres.getValue().forEach(g => params.append('exclude_genres', g));
-      tsCountries.getValue().forEach(c => params.append('countries', c));
+      const params = buildFilterParams();
 
       try {
         const res = await fetch(`/api/random?${params}`);
