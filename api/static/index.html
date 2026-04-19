@@ -975,6 +975,11 @@
             <select id="select-countries" multiple placeholder="Tous les pays..."></select>
           </div>
 
+          <div class="filter-cell">
+            <span class="filter-label">Exclure pays</span>
+            <select id="select-exclude-countries" multiple placeholder="Aucun pays exclu..."></select>
+          </div>
+
         </div>
       </div>
 
@@ -1080,7 +1085,7 @@
   </main>
 
   <script>
-    let sliderPop, sliderYear, tsGenres, tsExcludeGenres, tsCountries;
+    let sliderPop, sliderYear, tsGenres, tsExcludeGenres, tsCountries, tsExcludeCountries;
     let allGenres = [], allCountries = [];
     let currentAlbum = null;
     let likedIds = new Set();
@@ -1231,7 +1236,19 @@
       tsCountries = new TomSelect('#select-countries', {
         options: allCountries.map(c => ({ value: c, text: c })),
         plugins: ['remove_button'], maxOptions: 300,
-        onItemAdd() { debouncedCount(); debouncedFacets(); },
+        onItemAdd(val) {
+          if (tsExcludeCountries) tsExcludeCountries.removeItem(val, true);
+          debouncedCount(); debouncedFacets();
+        },
+        onItemRemove() { debouncedCount(); debouncedFacets(); },
+      });
+      tsExcludeCountries = new TomSelect('#select-exclude-countries', {
+        options: allCountries.map(c => ({ value: c, text: c })),
+        plugins: ['remove_button'], maxOptions: 300,
+        onItemAdd(val) {
+          if (tsCountries) tsCountries.removeItem(val, true);
+          debouncedCount(); debouncedFacets();
+        },
         onItemRemove() { debouncedCount(); debouncedFacets(); },
       });
 
@@ -1251,6 +1268,7 @@
       tsGenres.getValue().forEach(g => p.append('genres', g));
       tsExcludeGenres.getValue().forEach(g => p.append('exclude_genres', g));
       tsCountries.getValue().forEach(c => p.append('countries', c));
+      tsExcludeCountries.getValue().forEach(c => p.append('exclude_countries', c));
       return p;
     }
 
@@ -1297,9 +1315,12 @@
         const data = await fetch(`/api/facets?${buildFilterParams()}`).then(r => r.json());
         const includedGenres = tsGenres.getValue();
         const excludedGenres = tsExcludeGenres.getValue();
+        const includedCountries = tsCountries.getValue();
+        const excludedCountries = tsExcludeCountries.getValue();
         updateTomSelectOptions(tsGenres, data.genres, excludedGenres);
         updateTomSelectOptions(tsExcludeGenres, data.genres, includedGenres);
-        updateTomSelectOptions(tsCountries, data.countries);
+        updateTomSelectOptions(tsCountries, data.countries, excludedCountries);
+        updateTomSelectOptions(tsExcludeCountries, data.countries, includedCountries);
       } catch { /* silently ignore */ }
     }
 

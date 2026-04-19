@@ -185,6 +185,7 @@ def _build_where(
     genres: list[str] = [],
     exclude_genres: list[str] = [],
     countries: list[str] = [],
+    exclude_countries: list[str] = [],
 ) -> str:
     conditions = [
         f"popularity_score >= {popularity_min}",
@@ -203,6 +204,9 @@ def _build_where(
     if countries:
         lst = ", ".join(f"'{_sql_str_escape(c)}'" for c in countries)
         conditions.append(f"country = ANY(ARRAY[{lst}])")
+    if exclude_countries:
+        lst = ", ".join(f"'{_sql_str_escape(c)}'" for c in exclude_countries)
+        conditions.append(f"country != ALL(ARRAY[{lst}])")
     return " AND ".join(conditions)
 
 
@@ -217,8 +221,9 @@ def get_count(
     genres: list[str] = Query(default=[]),
     exclude_genres: list[str] = Query(default=[]),
     countries: list[str] = Query(default=[]),
+    exclude_countries: list[str] = Query(default=[]),
 ):
-    where = _build_where(popularity_min, popularity_max, year_min, year_max, genres, exclude_genres, countries)
+    where = _build_where(popularity_min, popularity_max, year_min, year_max, genres, exclude_genres, countries, exclude_countries)
     neon = get_neon()
     rows = neon.execute(f"SELECT COUNT(*) as n FROM dim_releases WHERE {where}")
     return {"count": rows[0]["n"] if rows else 0}
@@ -235,11 +240,12 @@ def get_facets(
     genres: list[str] = Query(default=[]),
     exclude_genres: list[str] = Query(default=[]),
     countries: list[str] = Query(default=[]),
+    exclude_countries: list[str] = Query(default=[]),
 ):
     neon = get_neon()
 
-    # Available genres: apply all filters EXCEPT genres (so you can still add more)
-    where_for_genres = _build_where(popularity_min, popularity_max, year_min, year_max, [], exclude_genres, countries)
+    # Available genres: all filters except genres dimension
+    where_for_genres = _build_where(popularity_min, popularity_max, year_min, year_max, [], exclude_genres, countries, exclude_countries)
     genre_rows = neon.execute(f"""
         SELECT DISTINCT unnest(genres) as genre
         FROM dim_releases
@@ -248,8 +254,8 @@ def get_facets(
     """)
     available_genres = [r["genre"] for r in genre_rows if r["genre"]]
 
-    # Available countries: apply all filters EXCEPT countries
-    where_for_countries = _build_where(popularity_min, popularity_max, year_min, year_max, genres, exclude_genres, [])
+    # Available countries: all filters except countries dimension
+    where_for_countries = _build_where(popularity_min, popularity_max, year_min, year_max, genres, exclude_genres, [], [])
     country_rows = neon.execute(f"""
         SELECT DISTINCT country
         FROM dim_releases
@@ -272,8 +278,9 @@ def get_random(
     genres: list[str] = Query(default=[]),
     exclude_genres: list[str] = Query(default=[]),
     countries: list[str] = Query(default=[]),
+    exclude_countries: list[str] = Query(default=[]),
 ):
-    where = _build_where(popularity_min, popularity_max, year_min, year_max, genres, exclude_genres, countries)
+    where = _build_where(popularity_min, popularity_max, year_min, year_max, genres, exclude_genres, countries, exclude_countries)
     neon = get_neon()
     rows = neon.execute(f"""
         SELECT discogs_id, title, artist, year, country,
