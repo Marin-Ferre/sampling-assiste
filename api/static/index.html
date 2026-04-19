@@ -1120,6 +1120,7 @@
         const user = await res.json();
         setUser(user);
         closeAuth();
+        await importLocalLikes();
         await loadLikesQuiet();
       } catch(e) {
         errEl.textContent = 'Erreur réseau';
@@ -1344,48 +1345,80 @@
     }
 
     // ── Likes ─────────────────────────────────────────────────────────────────
-    function likeEndpoint(id) {
-      return currentUser ? `/api/user/like/${id}` : `/api/like/${id}`;
+    // ── localStorage likes (anonymes) ────────────────────────────────────────
+    function localLikes() {
+      try { return new Set(JSON.parse(localStorage.getItem('gd_likes') || '[]')); }
+      catch(e) { return new Set(); }
     }
 
-    function likesListEndpoint() {
-      return currentUser ? '/api/user/likes' : '/api/likes';
+    function saveLocalLikes(set) {
+      localStorage.setItem('gd_likes', JSON.stringify([...set]));
     }
 
+    // À la connexion : importe les likes locaux dans user_likes puis vide le cache
+    async function importLocalLikes() {
+      const local = localLikes();
+      if (!local.size) return;
+      await Promise.all([...local].map(id =>
+        fetch(`/api/user/like/${id}`, { method: 'POST' }).catch(() => {})
+      ));
+      localStorage.removeItem('gd_likes');
+    }
+
+    // ── Likes ─────────────────────────────────────────────────────────────────
     async function toggleLike() {
       if (!currentAlbum) return;
       const id = currentAlbum.discogs_id;
-      if (likedIds.has(id)) {
-        await fetch(likeEndpoint(id), { method: 'DELETE' });
-        likedIds.delete(id);
-        syncLikeBtn(false);
+      if (currentUser) {
+        if (likedIds.has(id)) {
+          await fetch(`/api/user/like/${id}`, { method: 'DELETE' });
+          likedIds.delete(id);
+        } else {
+          await fetch(`/api/user/like/${id}`, { method: 'POST' });
+          likedIds.add(id);
+        }
       } else {
-        await fetch(likeEndpoint(id), { method: 'POST' });
-        likedIds.add(id);
-        syncLikeBtn(true);
+        // localStorage
+        if (likedIds.has(id)) likedIds.delete(id);
+        else likedIds.add(id);
+        saveLocalLikes(likedIds);
       }
+      syncLikeBtn(likedIds.has(id));
     }
 
     async function loadLikesQuiet() {
-      try {
-        const res = await fetch(likesListEndpoint());
-        if (!res.ok) { likedIds = new Set(); return; }
-        const likes = await res.json();
-        likedIds = new Set(likes.map(l => l.discogs_id));
-      } catch(e) { likedIds = new Set(); }
+      if (currentUser) {
+        try {
+          const res = await fetch('/api/user/likes');
+          if (!res.ok) { likedIds = new Set(); return; }
+          likedIds = new Set((await res.json()).map(l => l.discogs_id));
+        } catch(e) { likedIds = new Set(); }
+      } else {
+        likedIds = localLikes();
+      }
     }
 
     async function loadLikes() {
       await loadLikesQuiet();
       const container = document.getElementById('likes-list');
+
       if (!likedIds.size) {
         const msg = currentUser
           ? `Aucun keeper pour l'instant — creuse et marque tes gemmes.`
-          : `Connecte-toi pour sauvegarder tes keepers entre les sessions, ou creuse et marque tes gemmes.`;
+          : `Creuse et marque tes gemmes. Connecte-toi pour les sauvegarder entre les sessions.`;
         container.innerHTML = `<p class="likes-empty">${msg}</p>`;
         return;
       }
-      const likes = await fetch(likesListEndpoint()).then(r => r.json());
+
+      let likes = [];
+      if (currentUser) {
+        likes = await fetch('/api/user/likes').then(r => r.json());
+      } else {
+        const params = new URLSearchParams();
+        [...likedIds].forEach(id => params.append('ids', id));
+        likes = await fetch(`/api/releases?${params}`).then(r => r.json());
+      }
+
       container.innerHTML = likes.map(a => `
         <div class="like-item" id="like-${a.discogs_id}">
           <div class="like-cover-cell" id="lc-${a.discogs_id}">♪</div>
@@ -1411,7 +1444,12 @@
     }
 
     async function removeLike(id) {
-      await fetch(likeEndpoint(id), { method: 'DELETE' });
+      if (currentUser) {
+        await fetch(`/api/user/like/${id}`, { method: 'DELETE' });
+      } else {
+        likedIds.delete(id);
+        saveLocalLikes(likedIds);
+      }
       likedIds.delete(id);
       document.getElementById(`like-${id}`)?.remove();
       if (!document.querySelector('.like-item')) {

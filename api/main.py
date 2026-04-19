@@ -312,6 +312,22 @@ def get_user_likes(token: Optional[str] = Cookie(default=None)):
     """)
 
 
+# ── Releases by IDs (pour likes locaux) ──────────────────────────────────────
+
+@app.get("/api/releases")
+def get_releases_by_ids(ids: list[int] = Query(default=[])):
+    if not ids:
+        return []
+    ids_sql = ", ".join(str(i) for i in ids)
+    neon = get_neon()
+    return neon.execute(f"""
+        SELECT discogs_id, title, artist, year, country,
+               genres, styles, label, popularity_score
+        FROM dim_releases
+        WHERE discogs_id = ANY(ARRAY[{ids_sql}])
+    """)
+
+
 # ── YouTube search ────────────────────────────────────────────────────────────
 
 def _similarity(a: str, b: str) -> float:
