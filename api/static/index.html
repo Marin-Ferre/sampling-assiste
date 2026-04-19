@@ -92,6 +92,123 @@
       color: var(--muted);
     }
 
+    /* ── Auth modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(26,20,16,0.7);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--paper);
+      border: var(--rule);
+      width: 100%;
+      max-width: 380px;
+      margin: 20px;
+    }
+
+    .modal-header {
+      background: var(--ink);
+      color: var(--paper);
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: 0.1em;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--paper);
+      cursor: pointer;
+      font-size: 1.2rem;
+      line-height: 1;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+    .modal-close:hover { opacity: 1; }
+
+    .modal-tabs {
+      display: flex;
+      border-bottom: var(--rule-thin);
+    }
+
+    .modal-tab {
+      flex: 1;
+      padding: 10px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      background: none;
+      border: none;
+      border-right: var(--rule-thin);
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .modal-tab:last-child { border-right: none; }
+    .modal-tab.active { background: var(--paper2); color: var(--ink); font-weight: 700; }
+
+    .modal-body { padding: 24px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+    .modal-field { display: flex; flex-direction: column; gap: 6px; }
+
+    .modal-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .modal-input {
+      font-family: 'Crimson Pro', serif;
+      font-size: 1rem;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid #C5BAA8;
+      padding: 4px 0;
+      color: var(--ink);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .modal-input:focus { border-bottom-color: var(--ink); }
+
+    .modal-error {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--accent);
+      display: none;
+    }
+    .modal-error.visible { display: block; }
+
+    .modal-submit {
+      width: 100%;
+      background: var(--ink);
+      color: var(--paper);
+      border: none;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.2rem;
+      letter-spacing: 0.15em;
+      padding: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 4px;
+    }
+    .modal-submit:hover { background: var(--accent); }
+
     /* ── Nav strip ── */
     .nav-strip {
       width: 100%;
@@ -770,7 +887,34 @@
   <nav class="nav-strip">
     <button class="nav-btn active" onclick="showView('discover', this)">Dig</button>
     <button class="nav-btn" onclick="showView('likes', this)">Keeper List</button>
+    <button class="nav-btn" id="auth-nav-btn" onclick="openAuth()" style="margin-left:auto; border-left: var(--rule-thin); border-right:none;">Se connecter</button>
   </nav>
+
+  <!-- ── Auth modal ── -->
+  <div class="modal-overlay" id="modal-overlay" onclick="closeAuthIfOutside(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="modal-title">Connexion</span>
+        <button class="modal-close" onclick="closeAuth()">✕</button>
+      </div>
+      <div class="modal-tabs">
+        <button class="modal-tab active" id="tab-login" onclick="switchTab('login')">Connexion</button>
+        <button class="modal-tab" id="tab-register" onclick="switchTab('register')">Créer un compte</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-field">
+          <label class="modal-label">Nom d'utilisateur</label>
+          <input class="modal-input" id="auth-username" type="text" autocomplete="username" />
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">Mot de passe</label>
+          <input class="modal-input" id="auth-password" type="password" autocomplete="current-password" />
+        </div>
+        <div class="modal-error" id="auth-error"></div>
+        <button class="modal-submit" id="auth-submit" onclick="submitAuth()">Connexion</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ── Main ── -->
   <main class="container">
@@ -807,6 +951,11 @@
           <div class="filter-cell">
             <span class="filter-label">Genres</span>
             <select id="select-genres" multiple placeholder="Tous les genres..."></select>
+          </div>
+
+          <div class="filter-cell">
+            <span class="filter-label">Exclure genres</span>
+            <select id="select-exclude-genres" multiple placeholder="Aucun genre exclu..."></select>
           </div>
 
           <div class="filter-cell">
@@ -917,9 +1066,92 @@
   </main>
 
   <script>
-    let sliderPop, sliderYear, tsGenres, tsCountries;
+    let sliderPop, sliderYear, tsGenres, tsExcludeGenres, tsCountries;
     let currentAlbum = null;
     let likedIds = new Set();
+    let currentUser = null;  // { id, username } ou null
+    let authTab = 'login';
+
+    // ── Auth modal ───────────────────────────────────────────────────────────
+    function openAuth() {
+      document.getElementById('modal-overlay').classList.add('open');
+      document.getElementById('auth-username').focus();
+    }
+
+    function closeAuth() {
+      document.getElementById('modal-overlay').classList.remove('open');
+      document.getElementById('auth-error').classList.remove('visible');
+      document.getElementById('auth-username').value = '';
+      document.getElementById('auth-password').value = '';
+    }
+
+    function closeAuthIfOutside(e) {
+      if (e.target === document.getElementById('modal-overlay')) closeAuth();
+    }
+
+    function switchTab(tab) {
+      authTab = tab;
+      document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+      document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+      document.getElementById('modal-title').textContent = tab === 'login' ? 'Connexion' : 'Créer un compte';
+      document.getElementById('auth-submit').textContent = tab === 'login' ? 'Connexion' : 'Créer le compte';
+      document.getElementById('auth-error').classList.remove('visible');
+    }
+
+    async function submitAuth() {
+      const username = document.getElementById('auth-username').value.trim();
+      const password = document.getElementById('auth-password').value;
+      const errEl = document.getElementById('auth-error');
+      errEl.classList.remove('visible');
+
+      const endpoint = authTab === 'login' ? '/api/auth/login' : '/api/auth/register';
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        if (!res.ok) {
+          const e = await res.json();
+          errEl.textContent = e.detail || 'Erreur';
+          errEl.classList.add('visible');
+          return;
+        }
+        const user = await res.json();
+        setUser(user);
+        closeAuth();
+        await loadLikesQuiet();
+      } catch(e) {
+        errEl.textContent = 'Erreur réseau';
+        errEl.classList.add('visible');
+      }
+    }
+
+    async function logout() {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setUser(null);
+      likedIds = new Set();
+      syncLikeBtn(false);
+    }
+
+    function setUser(user) {
+      currentUser = user;
+      const btn = document.getElementById('auth-nav-btn');
+      if (user) {
+        btn.textContent = user.username + ' · Déco';
+        btn.onclick = logout;
+      } else {
+        btn.textContent = 'Se connecter';
+        btn.onclick = openAuth;
+      }
+    }
+
+    async function initAuth() {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) setUser(await res.json());
+      } catch(e) {}
+    }
 
     function fmt(n) {
       if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0','') + 'M';
@@ -961,6 +1193,10 @@
         options: (data.genres || []).filter(g => g).map(g => ({ value: g, text: g })),
         plugins: ['remove_button'], maxOptions: 200,
       });
+      tsExcludeGenres = new TomSelect('#select-exclude-genres', {
+        options: (data.genres || []).filter(g => g).map(g => ({ value: g, text: g })),
+        plugins: ['remove_button'], maxOptions: 200,
+      });
       tsCountries = new TomSelect('#select-countries', {
         options: (data.countries || []).filter(c => c).map(c => ({ value: c, text: c })),
         plugins: ['remove_button'], maxOptions: 300,
@@ -984,6 +1220,7 @@
         year_max: Math.round(yv[1]),
       });
       tsGenres.getValue().forEach(g => params.append('genres', g));
+      tsExcludeGenres.getValue().forEach(g => params.append('exclude_genres', g));
       tsCountries.getValue().forEach(c => params.append('countries', c));
 
       try {
@@ -1107,15 +1344,23 @@
     }
 
     // ── Likes ─────────────────────────────────────────────────────────────────
+    function likeEndpoint(id) {
+      return currentUser ? `/api/user/like/${id}` : `/api/like/${id}`;
+    }
+
+    function likesListEndpoint() {
+      return currentUser ? '/api/user/likes' : '/api/likes';
+    }
+
     async function toggleLike() {
       if (!currentAlbum) return;
       const id = currentAlbum.discogs_id;
       if (likedIds.has(id)) {
-        await fetch(`/api/like/${id}`, { method: 'DELETE' });
+        await fetch(likeEndpoint(id), { method: 'DELETE' });
         likedIds.delete(id);
         syncLikeBtn(false);
       } else {
-        await fetch(`/api/like/${id}`, { method: 'POST' });
+        await fetch(likeEndpoint(id), { method: 'POST' });
         likedIds.add(id);
         syncLikeBtn(true);
       }
@@ -1123,19 +1368,24 @@
 
     async function loadLikesQuiet() {
       try {
-        const likes = await fetch('/api/likes').then(r => r.json());
+        const res = await fetch(likesListEndpoint());
+        if (!res.ok) { likedIds = new Set(); return; }
+        const likes = await res.json();
         likedIds = new Set(likes.map(l => l.discogs_id));
-      } catch(e) {}
+      } catch(e) { likedIds = new Set(); }
     }
 
     async function loadLikes() {
       await loadLikesQuiet();
       const container = document.getElementById('likes-list');
       if (!likedIds.size) {
-        container.innerHTML = '<p class="likes-empty">Aucun keeper pour l\'instant — creuse et marque tes gemmes.</p>';
+        const msg = currentUser
+          ? `Aucun keeper pour l'instant — creuse et marque tes gemmes.`
+          : `Connecte-toi pour sauvegarder tes keepers entre les sessions, ou creuse et marque tes gemmes.`;
+        container.innerHTML = `<p class="likes-empty">${msg}</p>`;
         return;
       }
-      const likes = await fetch('/api/likes').then(r => r.json());
+      const likes = await fetch(likesListEndpoint()).then(r => r.json());
       container.innerHTML = likes.map(a => `
         <div class="like-item" id="like-${a.discogs_id}">
           <div class="like-cover-cell" id="lc-${a.discogs_id}">♪</div>
@@ -1161,7 +1411,7 @@
     }
 
     async function removeLike(id) {
-      await fetch(`/api/like/${id}`, { method: 'DELETE' });
+      await fetch(likeEndpoint(id), { method: 'DELETE' });
       likedIds.delete(id);
       document.getElementById(`like-${id}`)?.remove();
       if (!document.querySelector('.like-item')) {
@@ -1171,7 +1421,15 @@
       if (currentAlbum?.discogs_id === id) syncLikeBtn(false);
     }
 
-    initFilters();
+    // Entrée au clavier dans la modal
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && document.getElementById('modal-overlay').classList.contains('open')) {
+        submitAuth();
+      }
+      if (e.key === 'Escape') closeAuth();
+    });
+
+    initAuth().then(() => initFilters());
   </script>
 </body>
 </html>

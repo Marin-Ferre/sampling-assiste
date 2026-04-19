@@ -4,3 +4,6 @@ psycopg2-binary
 httpx
 python-dotenv
 yt-dlp
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
