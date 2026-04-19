@@ -1271,18 +1271,23 @@
     function debouncedCount() { clearTimeout(_countTimer); _countTimer = setTimeout(updateCount, 350); }
 
     function updateTomSelectOptions(ts, available, blockedByOther = []) {
-      const selected = new Set(ts.getValue());
+      const selectedVals = ts.getValue();
       const availableSet = new Set(available);
       const blockedSet = new Set(blockedByOther);
-      ts.clearOptions();
+
+      // Remove options that are no longer available or are blocked (but keep selected)
+      Object.keys(ts.options).forEach(val => {
+        if (selectedVals.includes(val)) return;
+        if (!availableSet.has(val) || blockedSet.has(val)) ts.removeOption(val);
+      });
+
+      // Add options that became available and aren't blocked
       available.forEach(val => {
-        if (blockedSet.has(val) && !selected.has(val)) return;
-        ts.addOption({ value: val, text: val });
+        if (!blockedSet.has(val) && !ts.options[val]) {
+          ts.addOption({ value: val, text: val });
+        }
       });
-      // Keep selected values even if no longer available
-      selected.forEach(val => {
-        if (!availableSet.has(val)) ts.addOption({ value: val, text: val });
-      });
+
       ts.refreshOptions(false);
     }
 
