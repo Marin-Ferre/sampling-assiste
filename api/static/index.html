@@ -412,12 +412,6 @@
     }
     .ts-wrapper.focus .ts-control { box-shadow: none !important; }
 
-    /* ── TomSelect disabled options ── */
-    .ts-dropdown .option.disabled {
-      opacity: 0.3;
-      pointer-events: none;
-    }
-
     /* ── Release count ── */
     .release-count {
       text-align: center;
@@ -1276,19 +1270,18 @@
     let _countTimer;
     function debouncedCount() { clearTimeout(_countTimer); _countTimer = setTimeout(updateCount, 350); }
 
-    function updateTomSelectOptions(ts, available, all, blockedByOther = []) {
+    function updateTomSelectOptions(ts, available, blockedByOther = []) {
       const selected = new Set(ts.getValue());
       const availableSet = new Set(available);
       const blockedSet = new Set(blockedByOther);
       ts.clearOptions();
-      all.forEach(val => {
-        const opt = { value: val, text: val };
-        if (blockedSet.has(val) && !selected.has(val)) {
-          opt.disabled = true;
-        } else if (!availableSet.has(val) && !selected.has(val)) {
-          opt.disabled = true;
-        }
-        ts.addOption(opt);
+      available.forEach(val => {
+        if (blockedSet.has(val) && !selected.has(val)) return;
+        ts.addOption({ value: val, text: val });
+      });
+      // Keep selected values even if no longer available
+      selected.forEach(val => {
+        if (!availableSet.has(val)) ts.addOption({ value: val, text: val });
       });
       ts.refreshOptions(false);
     }
@@ -1299,9 +1292,9 @@
         const data = await fetch(`/api/facets?${buildFilterParams()}`).then(r => r.json());
         const includedGenres = tsGenres.getValue();
         const excludedGenres = tsExcludeGenres.getValue();
-        updateTomSelectOptions(tsGenres, data.genres, allGenres, excludedGenres);
-        updateTomSelectOptions(tsExcludeGenres, data.genres, allGenres, includedGenres);
-        updateTomSelectOptions(tsCountries, data.countries, allCountries);
+        updateTomSelectOptions(tsGenres, data.genres, excludedGenres);
+        updateTomSelectOptions(tsExcludeGenres, data.genres, includedGenres);
+        updateTomSelectOptions(tsCountries, data.countries);
       } catch { /* silently ignore */ }
     }
 
