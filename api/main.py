@@ -12,7 +12,7 @@ from fastapi import FastAPI, Query, HTTPException, Response, Cookie, Body
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from pydantic import BaseModel
 
 from neon_client import NeonClient
@@ -29,7 +29,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="GemDigger")
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 # ── DB init ───────────────────────────────────────────────────────────────────
@@ -84,10 +83,10 @@ class LoginBody(BaseModel):
     password: str
 
 def _hash_password(pw: str) -> str:
-    return pwd_context.hash(pw)
+    return _bcrypt.hashpw(pw.encode(), _bcrypt.gensalt()).decode()
 
 def _verify_password(pw: str, hashed: str) -> bool:
-    return pwd_context.verify(pw, hashed)
+    return _bcrypt.checkpw(pw.encode(), hashed.encode())
 
 def _create_token(user_id: int, username: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRE_DAYS)
