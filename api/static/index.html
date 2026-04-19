@@ -413,8 +413,8 @@
     .ts-wrapper.focus .ts-control { box-shadow: none !important; }
 
     /* ── TomSelect disabled options ── */
-    .ts-dropdown .option[data-disabled] {
-      opacity: 0.35;
+    .ts-dropdown .option.disabled {
+      opacity: 0.3;
       pointer-events: none;
     }
 
@@ -1216,22 +1216,29 @@
       allGenres = (data.genres || []).filter(g => g);
       allCountries = (data.countries || []).filter(c => c);
 
-      const onFilterChange = () => { debouncedCount(); debouncedFacets(); };
-
       tsGenres = new TomSelect('#select-genres', {
         options: allGenres.map(g => ({ value: g, text: g })),
         plugins: ['remove_button'], maxOptions: 200,
-        onItemAdd: onFilterChange, onItemRemove: onFilterChange,
+        onItemAdd(val) {
+          if (tsExcludeGenres) tsExcludeGenres.removeItem(val, true);
+          debouncedCount(); debouncedFacets();
+        },
+        onItemRemove() { debouncedCount(); debouncedFacets(); },
       });
       tsExcludeGenres = new TomSelect('#select-exclude-genres', {
         options: allGenres.map(g => ({ value: g, text: g })),
         plugins: ['remove_button'], maxOptions: 200,
-        onItemAdd: onFilterChange, onItemRemove: onFilterChange,
+        onItemAdd(val) {
+          if (tsGenres) tsGenres.removeItem(val, true);
+          debouncedCount(); debouncedFacets();
+        },
+        onItemRemove() { debouncedCount(); debouncedFacets(); },
       });
       tsCountries = new TomSelect('#select-countries', {
         options: allCountries.map(c => ({ value: c, text: c })),
         plugins: ['remove_button'], maxOptions: 300,
-        onItemAdd: onFilterChange, onItemRemove: onFilterChange,
+        onItemAdd() { debouncedCount(); debouncedFacets(); },
+        onItemRemove() { debouncedCount(); debouncedFacets(); },
       });
 
       updateCount();
