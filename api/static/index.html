@@ -1216,8 +1216,11 @@
       allCountries = (data.countries || []).filter(c => c);
 
       function syncPlaceholder(ts, emptyText, filledText) {
-        const ph = ts.getValue().length > 0 ? filledText : emptyText;
-        ts.control_input.placeholder = ph;
+        setTimeout(() => {
+          const ph = ts.getValue().length > 0 ? filledText : emptyText;
+          const input = ts.wrapper ? ts.wrapper.querySelector('input') : null;
+          if (input) input.placeholder = ph;
+        }, 0);
       }
 
       tsGenres = new TomSelect('#select-genres', {
