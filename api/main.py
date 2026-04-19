@@ -172,7 +172,41 @@ def get_filters():
     return {"genres": genres, "countries": countries, "year_min": year_min, "year_max": year_max}
 
 
-# ── Count releases ───────────────────────────────────────────────────────────
+# ── Filter helpers ────────────────────────────────────────────────────────────
+
+def _sql_str_escape(s: str) -> str:
+    return s.replace("'", "''")
+
+def _build_where(
+    popularity_min: int = 0,
+    popularity_max: int = 100,
+    year_min: Optional[int] = None,
+    year_max: Optional[int] = None,
+    genres: list[str] = [],
+    exclude_genres: list[str] = [],
+    countries: list[str] = [],
+) -> str:
+    conditions = [
+        f"popularity_score >= {popularity_min}",
+        f"popularity_score <= {popularity_max}",
+    ]
+    if year_min is not None:
+        conditions.append(f"year >= {year_min}")
+    if year_max is not None:
+        conditions.append(f"year <= {year_max}")
+    if genres:
+        lst = ", ".join(f"'{_sql_str_escape(g)}'" for g in genres)
+        conditions.append(f"genres && ARRAY[{lst}]::text[]")
+    if exclude_genres:
+        lst = ", ".join(f"'{_sql_str_escape(g)}'" for g in exclude_genres)
+        conditions.append(f"NOT (genres && ARRAY[{lst}]::text[])")
+    if countries:
+        lst = ", ".join(f"'{_sql_str_escape(c)}'" for c in countries)
+        conditions.append(f"country = ANY(ARRAY[{lst}])")
+    return " AND ".join(conditions)
+
+
+# ── Count releases ────────────────────────────────────────────────────────────
 
 @app.get("/api/count")
 def get_count(
@@ -184,28 +218,47 @@ def get_count(
     exclude_genres: list[str] = Query(default=[]),
     countries: list[str] = Query(default=[]),
 ):
-    conditions = [
-        f"popularity_score >= {popularity_min}",
-        f"popularity_score <= {popularity_max}",
-    ]
-    if year_min is not None:
-        conditions.append(f"year >= {year_min}")
-    if year_max is not None:
-        conditions.append(f"year <= {year_max}")
-    if genres:
-        list_sql = ", ".join(f"'{g.replace(chr(39), chr(39)*2)}'" for g in genres)
-        conditions.append(f"genres && ARRAY[{list_sql}]::text[]")
-    if exclude_genres:
-        list_sql = ", ".join(f"'{g.replace(chr(39), chr(39)*2)}'" for g in exclude_genres)
-        conditions.append(f"NOT (genres && ARRAY[{list_sql}]::text[])")
-    if countries:
-        list_sql = ", ".join(f"'{c.replace(chr(39), chr(39)*2)}'" for c in countries)
-        conditions.append(f"country = ANY(ARRAY[{list_sql}])")
-
-    where = " AND ".join(conditions)
+    where = _build_where(popularity_min, popularity_max, year_min, year_max, genres, exclude_genres, countries)
     neon = get_neon()
     rows = neon.execute(f"SELECT COUNT(*) as n FROM dim_releases WHERE {where}")
     return {"count": rows[0]["n"] if rows else 0}
+
+
+# ── Facets (available filter options) ────────────────────────────────────────
+
+@app.get("/api/facets")
+def get_facets(
+    popularity_min: int = Query(0, ge=0, le=100),
+    popularity_max: int = Query(100, ge=0, le=100),
+    year_min: Optional[int] = Query(None),
+    year_max: Optional[int] = Query(None),
+    genres: list[str] = Query(default=[]),
+    exclude_genres: list[str] = Query(default=[]),
+    countries: list[str] = Query(default=[]),
+):
+    neon = get_neon()
+
+    # Available genres: apply all filters EXCEPT genres (so you can still add more)
+    where_for_genres = _build_where(popularity_min, popularity_max, year_min, year_max, [], exclude_genres, countries)
+    genre_rows = neon.execute(f"""
+        SELECT DISTINCT unnest(genres) as genre
+        FROM dim_releases
+        WHERE {where_for_genres} AND genres IS NOT NULL
+        ORDER BY genre
+    """)
+    available_genres = [r["genre"] for r in genre_rows if r["genre"]]
+
+    # Available countries: apply all filters EXCEPT countries
+    where_for_countries = _build_where(popularity_min, popularity_max, year_min, year_max, genres, exclude_genres, [])
+    country_rows = neon.execute(f"""
+        SELECT DISTINCT country
+        FROM dim_releases
+        WHERE {where_for_countries} AND country IS NOT NULL AND country != ''
+        ORDER BY country
+    """)
+    available_countries = [r["country"] for r in country_rows]
+
+    return {"genres": available_genres, "countries": available_countries}
 
 
 # ── Random release ────────────────────────────────────────────────────────────
@@ -220,35 +273,16 @@ def get_random(
     exclude_genres: list[str] = Query(default=[]),
     countries: list[str] = Query(default=[]),
 ):
-    conditions = [
-        f"popularity_score >= {popularity_min}",
-        f"popularity_score <= {popularity_max}",
-    ]
-    if year_min is not None:
-        conditions.append(f"year >= {year_min}")
-    if year_max is not None:
-        conditions.append(f"year <= {year_max}")
-    if genres:
-        list_sql = ", ".join(f"'{g.replace(chr(39), chr(39)*2)}'" for g in genres)
-        conditions.append(f"genres && ARRAY[{list_sql}]::text[]")
-    if exclude_genres:
-        list_sql = ", ".join(f"'{g.replace(chr(39), chr(39)*2)}'" for g in exclude_genres)
-        conditions.append(f"NOT (genres && ARRAY[{list_sql}]::text[])")
-    if countries:
-        list_sql = ", ".join(f"'{c.replace(chr(39), chr(39)*2)}'" for c in countries)
-        conditions.append(f"country = ANY(ARRAY[{list_sql}])")
-
-    where = " AND ".join(conditions)
-    sql = f"""
+    where = _build_where(popularity_min, popularity_max, year_min, year_max, genres, exclude_genres, countries)
+    neon = get_neon()
+    rows = neon.execute(f"""
         SELECT discogs_id, title, artist, year, country,
                genres, styles, label, popularity_score
         FROM dim_releases
         WHERE {where}
         ORDER BY RANDOM()
         LIMIT 1
-    """
-    neon = get_neon()
-    rows = neon.execute(sql)
+    """)
     if not rows:
         raise HTTPException(status_code=404, detail="Aucun album ne correspond aux critères.")
     return rows[0]

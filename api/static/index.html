@@ -412,6 +412,12 @@
     }
     .ts-wrapper.focus .ts-control { box-shadow: none !important; }
 
+    /* ── TomSelect disabled options ── */
+    .ts-dropdown .option[data-disabled] {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
     /* ── Release count ── */
     .release-count {
       text-align: center;
@@ -1081,6 +1087,7 @@
 
   <script>
     let sliderPop, sliderYear, tsGenres, tsExcludeGenres, tsCountries;
+    let allGenres = [], allCountries = [];
     let currentAlbum = null;
     let likedIds = new Set();
     let currentUser = null;  // { id, username } ou null
@@ -1193,7 +1200,7 @@
       sliderPop.on('update', v => {
         document.getElementById('pop-min-val').textContent = Math.round(v[0]);
         document.getElementById('pop-max-val').textContent = Math.round(v[1]);
-        debouncedCount();
+        debouncedCount(); debouncedFacets();
       });
 
       const yMin = data.year_min || 1955, yMax = data.year_max || 2000;
@@ -1203,26 +1210,32 @@
       sliderYear.on('update', v => {
         document.getElementById('year-min-val').textContent = Math.round(v[0]);
         document.getElementById('year-max-val').textContent = Math.round(v[1]);
-        debouncedCount();
+        debouncedCount(); debouncedFacets();
       });
 
+      allGenres = (data.genres || []).filter(g => g);
+      allCountries = (data.countries || []).filter(c => c);
+
+      const onFilterChange = () => { debouncedCount(); debouncedFacets(); };
+
       tsGenres = new TomSelect('#select-genres', {
-        options: (data.genres || []).filter(g => g).map(g => ({ value: g, text: g })),
+        options: allGenres.map(g => ({ value: g, text: g })),
         plugins: ['remove_button'], maxOptions: 200,
-        onItemAdd: debouncedCount, onItemRemove: debouncedCount,
+        onItemAdd: onFilterChange, onItemRemove: onFilterChange,
       });
       tsExcludeGenres = new TomSelect('#select-exclude-genres', {
-        options: (data.genres || []).filter(g => g).map(g => ({ value: g, text: g })),
+        options: allGenres.map(g => ({ value: g, text: g })),
         plugins: ['remove_button'], maxOptions: 200,
-        onItemAdd: debouncedCount, onItemRemove: debouncedCount,
+        onItemAdd: onFilterChange, onItemRemove: onFilterChange,
       });
       tsCountries = new TomSelect('#select-countries', {
-        options: (data.countries || []).filter(c => c).map(c => ({ value: c, text: c })),
+        options: allCountries.map(c => ({ value: c, text: c })),
         plugins: ['remove_button'], maxOptions: 300,
-        onItemAdd: debouncedCount, onItemRemove: debouncedCount,
+        onItemAdd: onFilterChange, onItemRemove: onFilterChange,
       });
 
       updateCount();
+      updateFacets();
     }
 
     // ── Release count ─────────────────────────────────────────────────────────
@@ -1255,6 +1268,31 @@
 
     let _countTimer;
     function debouncedCount() { clearTimeout(_countTimer); _countTimer = setTimeout(updateCount, 350); }
+
+    function updateTomSelectOptions(ts, available, all) {
+      const selected = new Set(ts.getValue());
+      const availableSet = new Set(available);
+      ts.clearOptions();
+      all.forEach(val => {
+        const opt = { value: val, text: val };
+        if (!availableSet.has(val) && !selected.has(val)) opt.disabled = true;
+        ts.addOption(opt);
+      });
+      ts.refreshOptions(false);
+    }
+
+    async function updateFacets() {
+      if (!tsGenres) return;
+      try {
+        const data = await fetch(`/api/facets?${buildFilterParams()}`).then(r => r.json());
+        updateTomSelectOptions(tsGenres, data.genres, allGenres);
+        updateTomSelectOptions(tsExcludeGenres, data.genres, allGenres);
+        updateTomSelectOptions(tsCountries, data.countries, allCountries);
+      } catch { /* silently ignore */ }
+    }
+
+    let _facetsTimer;
+    function debouncedFacets() { clearTimeout(_facetsTimer); _facetsTimer = setTimeout(updateFacets, 500); }
 
     // ── Randomize ─────────────────────────────────────────────────────────────
     document.getElementById('btn-dig').addEventListener('click', async () => {
