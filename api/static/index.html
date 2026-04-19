@@ -1269,13 +1269,18 @@
     let _countTimer;
     function debouncedCount() { clearTimeout(_countTimer); _countTimer = setTimeout(updateCount, 350); }
 
-    function updateTomSelectOptions(ts, available, all) {
+    function updateTomSelectOptions(ts, available, all, blockedByOther = []) {
       const selected = new Set(ts.getValue());
       const availableSet = new Set(available);
+      const blockedSet = new Set(blockedByOther);
       ts.clearOptions();
       all.forEach(val => {
         const opt = { value: val, text: val };
-        if (!availableSet.has(val) && !selected.has(val)) opt.disabled = true;
+        if (blockedSet.has(val) && !selected.has(val)) {
+          opt.disabled = true;
+        } else if (!availableSet.has(val) && !selected.has(val)) {
+          opt.disabled = true;
+        }
         ts.addOption(opt);
       });
       ts.refreshOptions(false);
@@ -1285,8 +1290,10 @@
       if (!tsGenres) return;
       try {
         const data = await fetch(`/api/facets?${buildFilterParams()}`).then(r => r.json());
-        updateTomSelectOptions(tsGenres, data.genres, allGenres);
-        updateTomSelectOptions(tsExcludeGenres, data.genres, allGenres);
+        const includedGenres = tsGenres.getValue();
+        const excludedGenres = tsExcludeGenres.getValue();
+        updateTomSelectOptions(tsGenres, data.genres, allGenres, excludedGenres);
+        updateTomSelectOptions(tsExcludeGenres, data.genres, allGenres, includedGenres);
         updateTomSelectOptions(tsCountries, data.countries, allCountries);
       } catch { /* silently ignore */ }
     }
