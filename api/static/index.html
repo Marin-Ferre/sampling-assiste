@@ -1215,41 +1215,62 @@
       allGenres = (data.genres || []).filter(g => g);
       allCountries = (data.countries || []).filter(c => c);
 
+      function syncPlaceholder(ts, emptyText, filledText) {
+        const ph = ts.getValue().length > 0 ? filledText : emptyText;
+        ts.control_input.placeholder = ph;
+      }
+
       tsGenres = new TomSelect('#select-genres', {
         options: allGenres.map(g => ({ value: g, text: g })),
         plugins: ['remove_button'], maxOptions: 200,
         onItemAdd(val) {
           if (tsExcludeGenres) tsExcludeGenres.removeItem(val, true);
+          syncPlaceholder(tsGenres, 'Tous les genres...', 'Ajouter un genre...');
           debouncedCount(); debouncedFacets();
         },
-        onItemRemove() { debouncedCount(); debouncedFacets(); },
+        onItemRemove() {
+          syncPlaceholder(tsGenres, 'Tous les genres...', 'Ajouter un genre...');
+          debouncedCount(); debouncedFacets();
+        },
       });
       tsExcludeGenres = new TomSelect('#select-exclude-genres', {
         options: allGenres.map(g => ({ value: g, text: g })),
         plugins: ['remove_button'], maxOptions: 200,
         onItemAdd(val) {
           if (tsGenres) tsGenres.removeItem(val, true);
+          syncPlaceholder(tsExcludeGenres, 'Aucun genre exclu...', 'Exclure un autre genre...');
           debouncedCount(); debouncedFacets();
         },
-        onItemRemove() { debouncedCount(); debouncedFacets(); },
+        onItemRemove() {
+          syncPlaceholder(tsExcludeGenres, 'Aucun genre exclu...', 'Exclure un autre genre...');
+          debouncedCount(); debouncedFacets();
+        },
       });
       tsCountries = new TomSelect('#select-countries', {
         options: allCountries.map(c => ({ value: c, text: c })),
         plugins: ['remove_button'], maxOptions: 300,
         onItemAdd(val) {
           if (tsExcludeCountries) tsExcludeCountries.removeItem(val, true);
+          syncPlaceholder(tsCountries, 'Tous les pays...', 'Ajouter un pays...');
           debouncedCount(); debouncedFacets();
         },
-        onItemRemove() { debouncedCount(); debouncedFacets(); },
+        onItemRemove() {
+          syncPlaceholder(tsCountries, 'Tous les pays...', 'Ajouter un pays...');
+          debouncedCount(); debouncedFacets();
+        },
       });
       tsExcludeCountries = new TomSelect('#select-exclude-countries', {
         options: allCountries.map(c => ({ value: c, text: c })),
         plugins: ['remove_button'], maxOptions: 300,
         onItemAdd(val) {
           if (tsCountries) tsCountries.removeItem(val, true);
+          syncPlaceholder(tsExcludeCountries, 'Aucun pays exclu...', 'Exclure un autre pays...');
           debouncedCount(); debouncedFacets();
         },
-        onItemRemove() { debouncedCount(); debouncedFacets(); },
+        onItemRemove() {
+          syncPlaceholder(tsExcludeCountries, 'Aucun pays exclu...', 'Exclure un autre pays...');
+          debouncedCount(); debouncedFacets();
+        },
       });
 
       updateCount();
