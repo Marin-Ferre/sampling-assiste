@@ -9,6 +9,17 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: sampling_assiste
+    command: >
+      postgres
+        -c shared_buffers=512MB
+        -c work_mem=64MB
+        -c maintenance_work_mem=256MB
+        -c synchronous_commit=off
+        -c wal_level=minimal
+        -c max_wal_senders=0
+        -c checkpoint_completion_target=0.9
+        -c max_wal_size=4GB
+        -c autovacuum=off
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -54,6 +65,7 @@ services:
       PG_DSN: postgresql://postgres:postgres@postgres:5432/sampling_assiste
     volumes:
       - airflow_logs:/opt/airflow/logs
+      - ./scripts:/opt/airflow/scripts:ro
     ports:
       - "8080:8080"
     command: webserver
@@ -69,6 +81,7 @@ services:
     environment: *airflow-env
     volumes:
       - airflow_logs:/opt/airflow/logs
+      - ./scripts:/opt/airflow/scripts:ro
     command: scheduler
     restart: unless-stopped
 
@@ -82,10 +95,23 @@ services:
         condition: service_healthy
     environment:
       PG_DSN: postgresql://postgres:postgres@postgres:5432/sampling_assiste
+      NEON_DSN: ${NEON_DSN}
+      DISCOGS_TOKEN: ${DISCOGS_TOKEN}
     ports:
       - "8000:8000"
     volumes:
       - ./api:/app
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
     restart: unless-stopped
 
 volumes:

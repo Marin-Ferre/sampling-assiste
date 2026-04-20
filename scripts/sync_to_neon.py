@@ -15,10 +15,11 @@ import psycopg2.extras
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s — %(message)s")
 logger = logging.getLogger(__name__)
 
-LOCAL_DSN = "postgresql://postgres:postgres@localhost:5432/sampling_assiste"
-NEON_HOST = "REDACTED_NEON_HOST"
-NEON_USER = "REDACTED_NEON_USER"
-NEON_PASSWORD = "REDACTED_NEON_PASSWORD"
+import os
+LOCAL_DSN = os.environ.get("PG_DSN", "postgresql://postgres:postgres@postgres:5432/sampling_assiste")
+NEON_HOST = os.environ.get("NEON_HOST", "REDACTED_NEON_HOST")
+NEON_USER = os.environ.get("NEON_USER", "REDACTED_NEON_USER")
+NEON_PASSWORD = os.environ.get("NEON_PASSWORD", "")
 
 NEON_HTTP_URL = f"https://{NEON_HOST}/sql"
 HEADERS = {

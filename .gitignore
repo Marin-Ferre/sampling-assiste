@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 .venv/
 data/*
+logs/
+.claude/settings.local.json
+.mcp.json
+enricher.log

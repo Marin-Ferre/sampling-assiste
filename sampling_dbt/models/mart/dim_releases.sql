@@ -3,7 +3,7 @@ with stg as (
 ),
 
 exploded as (
-    -- Une ligne par genre pour calculer le max par genre
+    -- Une ligne par genre pour calculer le percentile rank par genre
     select
         discogs_id,
         genre,
@@ -11,19 +11,25 @@ exploded as (
     from stg, unnest(genres) as genre
 ),
 
-max_per_genre as (
-    select genre, max(community_sum) as max_community_sum
+percentile_per_genre as (
+    -- Percentile rank de chaque release dans chaque genre
+    select
+        discogs_id,
+        genre,
+        round(
+            percent_rank() over (
+                partition by genre
+                order by community_sum
+            ) * 100
+        ) as pct_rank
     from exploded
-    group by genre
 ),
 
-best_max_per_release as (
-    -- Pour chaque release, on prend le max_community_sum le plus élevé parmi ses genres
-    -- → la release est comparée au genre où elle performe le mieux
-    select e.discogs_id, max(m.max_community_sum) as best_max
-    from exploded e
-    join max_per_genre m on m.genre = e.genre
-    group by e.discogs_id
+best_pct_per_release as (
+    -- Pour chaque release, on garde le meilleur percentile parmi ses genres
+    select discogs_id, max(pct_rank) as popularity_score
+    from percentile_per_genre
+    group by discogs_id
 ),
 
 enriched as (
@@ -49,14 +55,11 @@ enriched as (
             then round(s.community_want::numeric / s.community_have, 4)
             else s.community_want::numeric
         end                                                     as rarity_score,
-        -- Popularité normalisée sur 100 : comparée au genre le plus favorable
-        round(
-            (s.community_have + s.community_want)::numeric
-            / nullif(b.best_max, 0) * 100
-        )                                                       as popularity_score,
+        -- Popularité : percentile rank → distribution uniforme par genre
+        p.popularity_score,
         s.ingested_at
     from stg s
-    left join best_max_per_release b on b.discogs_id = s.discogs_id
+    left join best_pct_per_release p on p.discogs_id = s.discogs_id
 )
 
 select * from enriched

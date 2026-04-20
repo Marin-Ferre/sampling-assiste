@@ -63,6 +63,25 @@ def download(url: str, dest: Path) -> None:
                 bar.update(len(chunk))
 
 
+def archive_previous(current: Path) -> None:
+    """Archive l'ancien dump et supprime les archives plus anciennes."""
+    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+
+    existing = sorted(DUMPS_DIR.glob("discogs_*_releases.xml.gz"))
+    previous = [f for f in existing if f != current]
+
+    for old in previous:
+        dest = ARCHIVE_DIR / old.name
+        old.rename(dest)
+        print(f"Archivé : {dest}")
+
+    # Garde uniquement le plus récent dans l'archive
+    archived = sorted(ARCHIVE_DIR.glob("discogs_*_releases.xml.gz"))
+    for obsolete in archived[:-1]:
+        obsolete.unlink()
+        print(f"Supprimé (obsolète) : {obsolete.name}")
+
+
 def run() -> None:
     print("Recherche du dernier dump Discogs...")
     url, filename = list_latest_dump()
@@ -76,6 +95,9 @@ def run() -> None:
 
     download(url, dest)
     print(f"Téléchargement terminé : {dest}")
+
+    archive_previous(dest)
+    print("Archivage terminé.")
 
 
 if __name__ == "__main__":

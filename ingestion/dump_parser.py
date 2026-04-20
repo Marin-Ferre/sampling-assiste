@@ -22,7 +22,7 @@ import psycopg2.extras
 from lxml import etree
 from tqdm import tqdm
 
-from ingestion.config import PG_DSN, TARGET_GENRES
+from ingestion.config import PG_DSN, TARGET_GENRES, YEAR_MIN, YEAR_MAX
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +40,7 @@ INSERT INTO raw.releases (
     %(community_have)s, %(community_want)s, %(lowest_price)s, %(master_id)s
 )
 ON CONFLICT (discogs_id) DO UPDATE SET
-    community_have = EXCLUDED.community_have,
-    community_want = EXCLUDED.community_want,
-    ingested_at    = NOW();
+    ingested_at = NOW();
 """
 
 SCHEMA_SQL = """
@@ -97,9 +95,25 @@ def _int(el, tag: str) -> int | None:
 
 
 def parse_release(el) -> dict | None:
-    """Extrait les champs d'un élément <release>. Retourne None si hors genre cible."""
+    """Extrait les champs d'un élément <release>. Retourne None si hors critères."""
+    # Filtre genre
     genres = [g.text.strip() for g in el.findall("genres/genre") if g.text]
     if not any(g.lower() in TARGET_GENRES_SET for g in genres):
+        return None
+
+    # Filtre année — on parse l'année tôt pour éviter le reste du travail
+    year_text = _text(el, "released")
+    year = None
+    if year_text:
+        try:
+            parsed = int(year_text[:4])
+            if parsed > 0:
+                year = parsed
+        except ValueError:
+            pass
+    # Si l'année est connue et hors plage, on exclut.
+    # Si l'année est inconnue (None), on garde — mieux vaut inclure que rater des classiques.
+    if year is not None and not (YEAR_MIN <= year <= YEAR_MAX):
         return None
 
     styles = [s.text.strip() for s in el.findall("styles/style") if s.text]
@@ -116,14 +130,6 @@ def parse_release(el) -> dict | None:
 
     master_el = el.find("master_id")
     master_id = int(master_el.text) if master_el is not None and master_el.text else None
-
-    year_text = _text(el, "released")
-    year = None
-    if year_text:
-        try:
-            year = int(year_text[:4])
-        except ValueError:
-            pass
 
     return {
         "discogs_id": int(el.get("id")),
@@ -147,7 +153,6 @@ def parse_release(el) -> dict | None:
 
 def get_checkpoint(conn, dump_file: str) -> int:
     with conn.cursor() as cur:
-        cur.execute(CHECKPOINT_TABLE)
         cur.execute("SELECT offset_done FROM raw.dump_checkpoints WHERE dump_file=%s", (dump_file,))
         row = cur.fetchone()
     conn.commit()

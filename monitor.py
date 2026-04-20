@@ -45,13 +45,14 @@ def get_stats(conn) -> dict:
         """)
         last_10s = cur.fetchone()[0]
 
-        # Pages traitées par genre
+        # Releases par genre cible
         cur.execute("""
-            SELECT genre, COUNT(*) as pages
-            FROM raw.ingestion_checkpoints
+            SELECT genre, COUNT(*) as cnt
+            FROM raw.releases, unnest(genres) as genre
+            WHERE genre = ANY(%s)
             GROUP BY genre
             ORDER BY genre
-        """)
+        """, (TARGET_GENRES,))
         pages_by_genre = dict(cur.fetchall())
 
         # Dernière release ingérée
@@ -63,15 +64,24 @@ def get_stats(conn) -> dict:
         """)
         last = cur.fetchone()
 
-        # Distribution par genre
+        # Enrichissement community
         cur.execute("""
-            SELECT unnest(genres) as genre, COUNT(*) as cnt
+            SELECT
+                COUNT(*) FILTER (WHERE community_scraped_at IS NOT NULL) as enrichies,
+                COUNT(*) as total_enrichissable
             FROM raw.releases
-            GROUP BY genre
-            ORDER BY cnt DESC
-            LIMIT 10
         """)
-        genre_dist = cur.fetchall()
+        enrich_done, enrich_total = cur.fetchone()
+
+        # Dernière release enrichie
+        cur.execute("""
+            SELECT title, artist, community_have, community_want, community_scraped_at
+            FROM raw.releases
+            WHERE community_scraped_at IS NOT NULL
+            ORDER BY community_scraped_at DESC
+            LIMIT 1
+        """)
+        last_enriched = cur.fetchone()
 
     return {
         "total": total,
@@ -79,7 +89,9 @@ def get_stats(conn) -> dict:
         "last_10s": last_10s,
         "pages_by_genre": pages_by_genre,
         "last_release": last,
-        "genre_dist": genre_dist,
+        "enrich_done": enrich_done,
+        "enrich_total": enrich_total,
+        "last_enriched": last_enriched,
     }
 
 
@@ -104,6 +116,7 @@ def build_display(stats: dict, rpm: float) -> Layout:
     layout.split_column(
         Layout(name="header", size=3),
         Layout(name="main"),
+        Layout(name="enrich", size=7),
         Layout(name="footer", size=3),
     )
     layout["main"].split_row(
@@ -134,21 +147,41 @@ def build_display(stats: dict, rpm: float) -> Layout:
     # Progression par genre
     genre_table = Table(box=box.ROUNDED, padding=(0, 1))
     genre_table.add_column("Genre", style="cyan")
-    genre_table.add_column("Pages traitées", justify="right", style="yellow")
-    genre_table.add_column("Releases (est.)", justify="right", style="green")
+    genre_table.add_column("Releases", justify="right", style="green")
 
     for genre in TARGET_GENRES:
-        pages = stats["pages_by_genre"].get(genre, 0)
-        est_releases = pages * 100
-        genre_table.add_row(genre, str(pages), f"~{est_releases:,}")
+        count = stats["pages_by_genre"].get(genre, 0)
+        genre_table.add_row(genre, f"{count:,}")
 
     layout["right"].update(Panel(genre_table, title="[bold]Progression par genre", border_style="blue"))
+
+    # Panneau enrichissement community
+    enrich_done = stats["enrich_done"]
+    enrich_total = stats["enrich_total"]
+    pct = enrich_done / enrich_total * 100 if enrich_total else 0
+    bar_len = 40
+    filled = int(bar_len * pct / 100)
+    bar = "█" * filled + "░" * (bar_len - filled)
+
+    enrich_table = Table(box=box.ROUNDED, show_header=False, padding=(0, 2))
+    enrich_table.add_column("Métrique", style="cyan", width=30)
+    enrich_table.add_column("Valeur", style="bold magenta", justify="right")
+    enrich_table.add_row("Enrichies (community)", f"{enrich_done:,} / {enrich_total:,}  ({pct:.1f}%)")
+    enrich_table.add_row("Progression", f"[magenta]{bar}[/]")
+
+    if stats["last_enriched"]:
+        title, artist, have, want, scraped_at = stats["last_enriched"]
+        local = scraped_at.astimezone().strftime('%H:%M:%S')
+        enrich_table.add_row("Dernière enrichie", f"{artist} — {title}  |  have={have} want={want}  |  {local}")
+
+    layout["enrich"].update(Panel(enrich_table, title="[bold]Enrichissement Community", border_style="magenta"))
 
     # Footer — dernière release
     if stats["last_release"]:
         title, artist, year, ingested_at = stats["last_release"]
+        local_time = ingested_at.astimezone().strftime('%H:%M:%S')
         footer_text = Text(
-            f"  Dernière release : {artist} — {title} ({year})  |  ingérée à {ingested_at.strftime('%H:%M:%S')}",
+            f"  Dernière release : {artist} — {title} ({year})  |  ingérée à {local_time}",
             style="italic dim"
         )
     else:
