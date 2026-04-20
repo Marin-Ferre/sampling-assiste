@@ -6,4 +6,5 @@ data/*
 logs/
 .claude/settings.local.json
 .mcp.json
-enricher.log.claude/
+enricher.log
+.claude/
