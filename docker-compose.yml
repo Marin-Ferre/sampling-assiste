@@ -63,6 +63,9 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       DISCOGS_TOKEN: ${DISCOGS_TOKEN}
       PG_DSN: postgresql://postgres:postgres@postgres:5432/sampling_assiste
+      NEON_PASSWORD: ${NEON_PASSWORD}
+      NEON_HOST: ${NEON_HOST:-ep-mute-lab-abl7t5in.eu-west-2.aws.neon.tech}
+      NEON_USER: ${NEON_USER:-neondb_owner}
     volumes:
       - airflow_logs:/opt/airflow/logs
       - ./scripts:/opt/airflow/scripts:ro
